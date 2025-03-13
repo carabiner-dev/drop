@@ -92,7 +92,7 @@ func (c *Client) ListReleases(rdata RepoDataProvider) ([]*Release, error) {
 	return ret, nil
 }
 
-func (c *Client) ListReleaseAsset(rdata ReleaseDataProvider) ([]*Asset, error) {
+func (c *Client) ListReleaseAssets(rdata ReleaseDataProvider) ([]AssetDataProvider, error) {
 	releases, _, err := c.client.Repositories.ListReleases(
 		context.Background(), rdata.GetOrg(), rdata.GetRepo(), &gogithub.ListOptions{
 			Page:    0,
@@ -103,7 +103,7 @@ func (c *Client) ListReleaseAsset(rdata ReleaseDataProvider) ([]*Asset, error) {
 	}
 
 	for _, r := range releases {
-		if rdata.GetVersion() == "" {
+		if rdata.GetVersion() == "" || rdata.GetVersion() == "latest" {
 			return buildReleaseAssets(rdata, r), nil
 		}
 
@@ -115,8 +115,8 @@ func (c *Client) ListReleaseAsset(rdata ReleaseDataProvider) ([]*Asset, error) {
 	return nil, fmt.Errorf("release %v not found", rdata.GetVersion())
 }
 
-func buildReleaseAssets(src ReleaseDataProvider, release *gogithub.RepositoryRelease) []*Asset {
-	ret := []*Asset{}
+func buildReleaseAssets(src ReleaseDataProvider, release *gogithub.RepositoryRelease) []AssetDataProvider {
+	ret := []AssetDataProvider{}
 	for _, gha := range release.Assets {
 		ret = append(ret, newAssetFromGitHubAsset(src, gha))
 	}

@@ -6,8 +6,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/render"
 	"github.com/spf13/cobra"
 )
 
@@ -55,22 +58,34 @@ func addLs(parentCmd *cobra.Command) {
 			}
 			cmd.SilenceUsage = true
 
+			// Parse the asset URL
 			asset := github.NewAssetFromURLString(opts.AppUrl)
 			if asset == nil {
 				return fmt.Errorf("unable to parse url: %q", opts.AppUrl)
 			}
+
+			// Creat the GitHub client
 			client, err := github.New()
 			if err != nil {
 				return err
 			}
-			list, err := client.ListReleaseAsset(asset)
-			if err != nil {
-				return err
+
+			// Init the rendering engine
+			eng := render.New()
+			var out io.Writer
+			out = os.Stdout
+
+			// If the URL has a version, then we list a release
+			if asset.GetVersion() != "" || asset.GetVersion() == "latest" {
+				list, err := client.ListReleaseAssets(asset)
+				if err != nil {
+					return err
+				}
+				return eng.RenderReleaseAssets(out, asset, list)
+			} else {
+
 			}
 
-			for _, a := range list {
-				fmt.Println(a.Name)
-			}
 			return nil
 		},
 	}
