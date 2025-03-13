@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseAssetString(t *testing.T) {
+func TestNewAssetFromURLString(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name   string
@@ -28,7 +28,7 @@ func TestParseAssetString(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			a := NewAssetFromString(tc.input)
+			a := NewAssetFromURLString(tc.input)
 			require.Equal(t, tc.expect, a)
 		})
 	}

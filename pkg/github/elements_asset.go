@@ -3,7 +3,27 @@
 
 package github
 
-import "time"
+import (
+	"time"
+
+	gogithub "github.com/google/go-github/v60/github"
+)
+
+func newAssetFromGitHubAsset(src ReleaseDataProvider, asset *gogithub.ReleaseAsset) *Asset {
+	return &Asset{
+		Host:        src.GetHost(),
+		Org:         src.GetOrg(),
+		Repo:        src.GetRepo(),
+		Version:     src.GetVersion(),
+		Name:        asset.GetName(),
+		DownloadURL: asset.GetBrowserDownloadURL(),
+		Author:      asset.GetUploader().GetLogin(),
+		CreatedAt:   *asset.CreatedAt.GetTime(),
+		UpdatedAt:   *asset.UpdatedAt.GetTime(),
+		Size:        asset.GetSize(),
+		Label:       asset.GetLabel(),
+	}
+}
 
 type Asset struct {
 	// RepoData
@@ -18,7 +38,7 @@ type Asset struct {
 	Name        string
 	DownloadURL string
 	Author      string
-	Size        int64
+	Size        int
 	Label       string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

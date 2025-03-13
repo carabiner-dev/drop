@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	gogithub "github.com/google/go-github/v60/github"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -29,19 +28,23 @@ func New() (*Client, error) {
 
 	client := gogithub.NewClient(httpClient)
 	return &Client{
-		Options: Options{},
-		client:  client,
+		Options: Options{
+			Host: "github.com",
+		},
+		client: client,
 	}, nil
 }
 
-type Options struct{}
+type Options struct {
+	Host string
+}
 
 type Client struct {
 	Options Options
 	client  *gogithub.Client
 }
 
-func NewAssetFromString(urlString string) *Asset {
+func NewAssetFromURLString(urlString string) *Asset {
 	if strings.HasPrefix(urlString, "github.com") {
 		urlString = "https://" + urlString
 	}
@@ -52,7 +55,6 @@ func NewAssetFromString(urlString string) *Asset {
 
 	parts := strings.Split(strings.TrimPrefix(p.Path, "/"), "/")
 	var org, repo, artifact, version string
-	logrus.Infof("%+v", parts)
 	if len(parts) > 0 {
 		org = parts[0]
 	}
@@ -74,7 +76,20 @@ func NewAssetFromString(urlString string) *Asset {
 
 // ListReleases returns a list of the latest releases in a repo
 func (c *Client) ListReleases(rdata RepoDataProvider) ([]*Release, error) {
-	return nil, nil
+	releases, _, err := c.client.Repositories.ListReleases(
+		context.Background(), rdata.GetOrg(), rdata.GetRepo(), &gogithub.ListOptions{
+			Page:    0,
+			PerPage: 100,
+		})
+	if err != nil {
+		return nil, fmt.Errorf("fetching release: %w", err)
+	}
+
+	ret := []*Release{}
+	for _, r := range releases {
+		ret = append(ret, newReleaseFromGitHubRelease(rdata, r))
+	}
+	return ret, nil
 }
 
 func (c *Client) ListReleaseAsset(rdata ReleaseDataProvider) ([]*Asset, error) {
@@ -100,23 +115,10 @@ func (c *Client) ListReleaseAsset(rdata ReleaseDataProvider) ([]*Asset, error) {
 	return nil, fmt.Errorf("release %v not found", rdata.GetVersion())
 }
 
-func buildReleaseAssets(src RepoDataProvider, release *gogithub.RepositoryRelease) []*Asset {
+func buildReleaseAssets(src ReleaseDataProvider, release *gogithub.RepositoryRelease) []*Asset {
 	ret := []*Asset{}
 	for _, gha := range release.Assets {
-		a := &Asset{
-			Host:        src.GetHost(),
-			Org:         src.GetOrg(),
-			Repo:        src.GetRepo(),
-			Version:     release.GetTagName(),
-			Name:        gha.GetName(),
-			DownloadURL: gha.GetBrowserDownloadURL(),
-			Author:      gha.GetUploader().GetLogin(),
-			CreatedAt:   *gha.CreatedAt.GetTime(),
-			UpdatedAt:   *gha.UpdatedAt.GetTime(),
-			Size:        int64(gha.GetSize()),
-			Label:       gha.GetLabel(),
-		}
-		ret = append(ret, a)
+		ret = append(ret, newAssetFromGitHubAsset(src, gha))
 	}
 	return ret
 }

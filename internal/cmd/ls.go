@@ -55,7 +55,7 @@ func addLs(parentCmd *cobra.Command) {
 			}
 			cmd.SilenceUsage = true
 
-			asset := github.NewAssetFromString(opts.AppUrl)
+			asset := github.NewAssetFromURLString(opts.AppUrl)
 			if asset == nil {
 				return fmt.Errorf("unable to parse url: %q", opts.AppUrl)
 			}

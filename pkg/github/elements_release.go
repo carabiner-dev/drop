@@ -3,6 +3,19 @@
 
 package github
 
+import gogithub "github.com/google/go-github/v60/github"
+
+func newReleaseFromGitHubRelease(repo RepoDataProvider, release *gogithub.RepositoryRelease) *Release {
+	return &Release{
+		Host:       repo.GetHost(), //  c.Options.Host,
+		Repo:       repo.GetRepo(), //rdata.GetRepo(), r.G
+		Org:        repo.GetOrg(),
+		Version:    release.GetTagName(),
+		ID:         release.GetID(),
+		PreRelease: release.GetPrerelease(),
+	}
+}
+
 type Release struct {
 	// Repository
 	Host string
@@ -10,7 +23,9 @@ type Release struct {
 	Org  string
 
 	// Release
-	Version string
+	Version    string
+	ID         int64
+	PreRelease bool
 }
 
 func (r *Release) GetHost() string {
