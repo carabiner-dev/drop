@@ -59,3 +59,23 @@ func (a *Asset) GetOrg() string {
 func (a *Asset) GetVersion() string {
 	return a.Version
 }
+
+func (a *Asset) GetName() string {
+	return a.Name
+}
+
+func (a *Asset) GetAuthor() string {
+	return a.Author
+}
+
+func (a *Asset) GetSize() int {
+	return a.Size
+}
+
+func (a *Asset) GetCreatedAt() time.Time {
+	return a.CreatedAt
+}
+
+func (a *Asset) GetUpdatedAt() time.Time {
+	return a.UpdatedAt
+}
