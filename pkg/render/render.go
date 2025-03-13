@@ -4,20 +4,44 @@
 package render
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/render/drivers"
 )
 
-func New() *Engine {
-	return &Engine{
+type optFn func(*Engine) error
+
+func WithDriver(driver Driver) optFn {
+	return func(e *Engine) error {
+		if driver == nil {
+			return fmt.Errorf("no render driver specified")
+		}
+		e.driver = driver
+		return nil
+	}
+}
+
+func New(funcs ...optFn) (*Engine, error) {
+	e := &Engine{
 		driver: drivers.NewLsTTY(),
 	}
+	for _, fn := range funcs {
+		if err := fn(e); err != nil {
+			return nil, err
+		}
+	}
+	return e, nil
 }
 
 type Engine struct {
 	driver Driver
+}
+
+type Driver interface {
+	RenderReleaseAssets(io.Writer, github.ReleaseDataProvider, []github.AssetDataProvider) error
+	RenderRepoReleases(io.Writer, github.RepoDataProvider, []github.ReleaseDataProvider) error
 }
 
 func (e *Engine) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
@@ -25,9 +49,4 @@ func (e *Engine) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProv
 }
 func (e *Engine) RenderRepoReleases(w io.Writer, repo github.RepoDataProvider, releases []github.ReleaseDataProvider) error {
 	return e.driver.RenderRepoReleases(w, repo, releases)
-}
-
-type Driver interface {
-	RenderReleaseAssets(io.Writer, github.ReleaseDataProvider, []github.AssetDataProvider) error
-	RenderRepoReleases(io.Writer, github.RepoDataProvider, []github.ReleaseDataProvider) error
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	gogithub "github.com/google/go-github/v60/github"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -24,6 +25,8 @@ func New() (*Client, error) {
 		httpClient = oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: token},
 		))
+	} else {
+		logrus.Warn("Running unauthenticated. Watch out for rate limits from  the GitHub API")
 	}
 
 	client := gogithub.NewClient(httpClient)
@@ -75,7 +78,7 @@ func NewAssetFromURLString(urlString string) *Asset {
 }
 
 // ListReleases returns a list of the latest releases in a repo
-func (c *Client) ListReleases(rdata RepoDataProvider) ([]*Release, error) {
+func (c *Client) ListReleases(rdata RepoDataProvider) ([]ReleaseDataProvider, error) {
 	releases, _, err := c.client.Repositories.ListReleases(
 		context.Background(), rdata.GetOrg(), rdata.GetRepo(), &gogithub.ListOptions{
 			Page:    0,
@@ -85,7 +88,7 @@ func (c *Client) ListReleases(rdata RepoDataProvider) ([]*Release, error) {
 		return nil, fmt.Errorf("fetching release: %w", err)
 	}
 
-	ret := []*Release{}
+	ret := []ReleaseDataProvider{}
 	for _, r := range releases {
 		ret = append(ret, newReleaseFromGitHubRelease(rdata, r))
 	}

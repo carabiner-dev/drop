@@ -11,6 +11,7 @@ import (
 
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/render"
+	"github.com/carabiner-dev/drop/pkg/render/drivers"
 	"github.com/spf13/cobra"
 )
 
@@ -71,7 +72,16 @@ func addLs(parentCmd *cobra.Command) {
 			}
 
 			// Init the rendering engine
-			eng := render.New()
+			drv := drivers.NewLsTTY()
+			drv.Options.Long = opts.Long
+
+			eng, err := render.New(
+				render.WithDriver(drv),
+			)
+			if err != nil {
+				return err
+			}
+
 			var out io.Writer
 			out = os.Stdout
 
@@ -83,10 +93,13 @@ func addLs(parentCmd *cobra.Command) {
 				}
 				return eng.RenderReleaseAssets(out, asset, list)
 			} else {
+				releases, err := client.ListReleases(asset)
+				if err != nil {
+					return err
+				}
 
+				return eng.RenderRepoReleases(out, asset, releases)
 			}
-
-			return nil
 		},
 	}
 	opts.AddFlags(lsCmd)

@@ -8,6 +8,8 @@ import "time"
 type ReleaseDataProvider interface {
 	RepoDataProvider
 	GetVersion() string
+	GetCreatedAt() time.Time
+	GetAuthor() string
 }
 
 type RepoDataProvider interface {
