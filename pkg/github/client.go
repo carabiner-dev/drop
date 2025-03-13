@@ -65,11 +65,15 @@ func NewAssetFromString(urlString string) *Asset {
 
 	artifact = p.Fragment
 	return &Asset{
-		Host:    p.Hostname(),
-		Org:     org,
-		Repo:    repo,
-		Version: version,
-		Name:    artifact,
+		Release: Release{
+			RepoData: RepoData{
+				Host: p.Hostname(),
+				Org:  org,
+				Repo: repo,
+			},
+			Version: version,
+		},
+		Name: artifact,
 	}
 }
 
@@ -85,10 +89,7 @@ type ReleaseDataProvider interface {
 }
 
 type Asset struct {
-	Host        string
-	Org         string
-	Repo        string
-	Version     string
+	Release
 	Name        string
 	DownloadURL string
 	Author      string
@@ -98,20 +99,36 @@ type Asset struct {
 	UpdatedAt   time.Time
 }
 
-func (a *Asset) GetHost() string {
-	return a.Host
+type RepoData struct {
+	Host string
+	Repo string
+	Org  string
 }
 
-func (a *Asset) GetRepo() string {
-	return a.Repo
+func (r *RepoData) GetHost() string {
+	return r.Host
 }
 
-func (a *Asset) GetOrg() string {
-	return a.Org
+func (r *RepoData) GetRepo() string {
+	return r.Repo
 }
 
-func (a *Asset) GetVersion() string {
-	return a.Version
+func (r *Asset) GetOrg() string {
+	return r.Org
+}
+
+type Release struct {
+	RepoData
+	Version string
+}
+
+func (r *Release) GetVersion() string {
+	return r.Version
+}
+
+// ListReleases returns a list of the latest releases in a repo
+func (c *Client) ListReleases(rdata RepoDataProvider) ([]*Release, error) {
+	return nil, nil
 }
 
 func (c *Client) ListReleaseAsset(rdata ReleaseDataProvider) ([]*Asset, error) {
@@ -141,10 +158,14 @@ func buildReleaseAssets(src RepoDataProvider, release *gogithub.RepositoryReleas
 	ret := []*Asset{}
 	for _, gha := range release.Assets {
 		a := &Asset{
-			Host:        src.GetHost(),
-			Org:         src.GetOrg(),
-			Repo:        src.GetRepo(),
-			Version:     release.GetTagName(),
+			Release: Release{
+				RepoData: RepoData{
+					Host: src.GetHost(),
+					Org:  src.GetOrg(),
+					Repo: src.GetRepo(),
+				},
+				Version: release.GetTagName(),
+			},
 			Name:        gha.GetName(),
 			DownloadURL: gha.GetBrowserDownloadURL(),
 			Author:      gha.GetUploader().GetLogin(),
