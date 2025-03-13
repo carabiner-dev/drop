@@ -18,11 +18,11 @@ func TestParseAssetString(t *testing.T) {
 	}{
 		{
 			"full", "github.com/carabiner-dev/drop@v1.0.0#installer",
-			&Asset{Release: Release{RepoData: RepoData{Host: "github.com", Org: "carabiner-dev", Repo: "drop"}, Version: "v1.0.0"}, Name: "installer"},
+			&Asset{Host: "github.com", Org: "carabiner-dev", Repo: "drop", Version: "v1.0.0", Name: "installer"},
 		},
 		{
 			"slug", "carabiner-dev/drop",
-			&Asset{Release: Release{RepoData: RepoData{Org: "carabiner-dev", Repo: "drop"}}},
+			&Asset{Org: "carabiner-dev", Repo: "drop"},
 		},
 	} {
 		tc := tc

@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	gogithub "github.com/google/go-github/v60/github"
 	"github.com/sirupsen/logrus"
@@ -65,65 +64,12 @@ func NewAssetFromString(urlString string) *Asset {
 
 	artifact = p.Fragment
 	return &Asset{
-		Release: Release{
-			RepoData: RepoData{
-				Host: p.Hostname(),
-				Org:  org,
-				Repo: repo,
-			},
-			Version: version,
-		},
-		Name: artifact,
+		Host:    p.Hostname(),
+		Org:     org,
+		Repo:    repo,
+		Version: version,
+		Name:    artifact,
 	}
-}
-
-type RepoDataProvider interface {
-	GetHost() string
-	GetRepo() string
-	GetOrg() string
-}
-
-type ReleaseDataProvider interface {
-	RepoDataProvider
-	GetVersion() string
-}
-
-type Asset struct {
-	Release
-	Name        string
-	DownloadURL string
-	Author      string
-	Size        int64
-	Label       string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-type RepoData struct {
-	Host string
-	Repo string
-	Org  string
-}
-
-func (r *RepoData) GetHost() string {
-	return r.Host
-}
-
-func (r *RepoData) GetRepo() string {
-	return r.Repo
-}
-
-func (r *Asset) GetOrg() string {
-	return r.Org
-}
-
-type Release struct {
-	RepoData
-	Version string
-}
-
-func (r *Release) GetVersion() string {
-	return r.Version
 }
 
 // ListReleases returns a list of the latest releases in a repo
@@ -158,14 +104,10 @@ func buildReleaseAssets(src RepoDataProvider, release *gogithub.RepositoryReleas
 	ret := []*Asset{}
 	for _, gha := range release.Assets {
 		a := &Asset{
-			Release: Release{
-				RepoData: RepoData{
-					Host: src.GetHost(),
-					Org:  src.GetOrg(),
-					Repo: src.GetRepo(),
-				},
-				Version: release.GetTagName(),
-			},
+			Host:        src.GetHost(),
+			Org:         src.GetOrg(),
+			Repo:        src.GetRepo(),
+			Version:     release.GetTagName(),
 			Name:        gha.GetName(),
 			DownloadURL: gha.GetBrowserDownloadURL(),
 			Author:      gha.GetUploader().GetLogin(),
