@@ -38,6 +38,19 @@ type Installable struct {
 	Os          string
 }
 
+func (i *Installable) LocalVariant() *Asset {
+	info, err := system.GetInfo()
+	if err != nil {
+		return nil
+	}
+	for _, v := range i.Variants {
+		if v.Os == info.Os && v.Arch == info.Arch {
+			return v
+		}
+	}
+	return nil
+}
+
 func (i *Installable) GetOsVariants() []string {
 	ret := []string{}
 	for _, v := range i.Variants {
@@ -201,22 +214,45 @@ func (i *Installable) GetName() string {
 }
 
 func (i *Installable) GetAuthor() string {
+	v := i.LocalVariant()
+	if v != nil {
+		return v.Author
+	}
+
 	return i.Author
 }
 
 func (i *Installable) GetSize() int {
+	v := i.LocalVariant()
+	if v != nil {
+		return v.Size
+	}
 	return i.Size
 }
 
 func (i *Installable) GetCreatedAt() time.Time {
+	v := i.LocalVariant()
+	if v != nil {
+		return v.CreatedAt
+	}
 	return i.CreatedAt
 }
 
 func (i *Installable) GetUpdatedAt() time.Time {
+	v := i.LocalVariant()
+	if v != nil {
+		return v.UpdatedAt
+	}
+
 	return i.UpdatedAt
 }
 
 func (i *Installable) GetDownloadURL() string {
+	v := i.LocalVariant()
+	if v != nil {
+		return v.DownloadURL
+	}
+
 	return i.DownloadURL
 }
 
