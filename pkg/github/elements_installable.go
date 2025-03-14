@@ -51,6 +51,16 @@ func (i *Installable) LocalVariant() *Asset {
 	return nil
 }
 
+func (i *Installable) localOrFirstVariant() *Asset {
+	if a := i.LocalVariant(); a != nil {
+		return a
+	}
+	if len(i.Variants) > 0 {
+		return i.Variants[0]
+	}
+	return nil
+}
+
 func (i *Installable) GetOsVariants() []string {
 	ret := []string{}
 	for _, v := range i.Variants {
@@ -226,7 +236,7 @@ func (i *Installable) GetName() string {
 }
 
 func (i *Installable) GetAuthor() string {
-	v := i.LocalVariant()
+	v := i.localOrFirstVariant()
 	if v != nil {
 		return v.Author
 	}
@@ -235,7 +245,7 @@ func (i *Installable) GetAuthor() string {
 }
 
 func (i *Installable) GetSize() int {
-	v := i.LocalVariant()
+	v := i.localOrFirstVariant()
 	if v != nil {
 		return v.Size
 	}
@@ -243,7 +253,7 @@ func (i *Installable) GetSize() int {
 }
 
 func (i *Installable) GetCreatedAt() time.Time {
-	v := i.LocalVariant()
+	v := i.localOrFirstVariant()
 	if v != nil {
 		return v.CreatedAt
 	}
@@ -251,7 +261,7 @@ func (i *Installable) GetCreatedAt() time.Time {
 }
 
 func (i *Installable) GetUpdatedAt() time.Time {
-	v := i.LocalVariant()
+	v := i.localOrFirstVariant()
 	if v != nil {
 		return v.UpdatedAt
 	}
@@ -260,7 +270,7 @@ func (i *Installable) GetUpdatedAt() time.Time {
 }
 
 func (i *Installable) GetDownloadURL() string {
-	v := i.LocalVariant()
+	v := i.localOrFirstVariant()
 	if v != nil {
 		return v.DownloadURL
 	}
