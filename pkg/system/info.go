@@ -39,6 +39,7 @@ const (
 	ArchS390X   = "s390x"   // IBM Z
 	ArchPPC64LE = "ppc64le" // IBM Power (redhat naming)
 	ArchPPC64EL = "ppc64el" // IBM Power (debian naming)
+	ArchPPC64   = "ppc64"
 
 	// Aliases
 	ArchArmHF   = "armhf"
@@ -46,6 +47,9 @@ const (
 	ArchArmV7HL = "armv7hl"
 	ArchAarch64 = "aarch64"
 	ArchAMD64   = "amd64"
+	ArchX86     = "x86"
+	ArchI686    = "i686"
+	ArchI386    = "i386"
 )
 
 func MainSplitPattern() string {
@@ -123,10 +127,10 @@ var ArchAliases = map[string]LabelList{
 	ArchX8664:   {ArchX8664, ArchAMD64},
 	ArchArm64:   {ArchArm64, ArchAarch64},
 	ArchArm:     {ArchArm, ArchArmHF, ArchArmV7, ArchArmV7HL},
-	Arch386:     {Arch386},
+	Arch386:     {Arch386, ArchI686, ArchX86, ArchI386},
 	ArchRiscV64: {ArchRiscV64},
 	ArchS390X:   {ArchS390X},
-	ArchPPC64LE: {ArchPPC64LE, ArchPPC64EL},
+	ArchPPC64LE: {ArchPPC64LE, ArchPPC64EL, ArchPPC64},
 }
 
 type Info struct {
