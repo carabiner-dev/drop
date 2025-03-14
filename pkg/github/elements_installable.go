@@ -4,7 +4,11 @@
 package github
 
 import (
+	"cmp"
 	"regexp"
+	"slices"
+	"strings"
+	"time"
 
 	"github.com/carabiner-dev/drop/pkg/system"
 )
@@ -18,12 +22,51 @@ type Installable struct {
 	Org  string
 
 	// Release
-	Version  string
+	Version string
+
 	Name     string
 	Variants []*Asset
+
+	// Asset
+	DownloadURL string
+	Author      string
+	Size        int
+	Label       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Arch        string
+	Os          string
 }
 
-func assetListToInstallableList(assets []AssetDataProvider) {
+func (i *Installable) GetOsVariants() []string {
+	ret := []string{}
+	for _, v := range i.Variants {
+		if v.Os == "" {
+			continue
+		}
+		if !slices.Contains(ret, v.Os) {
+			ret = append(ret, v.Os)
+		}
+	}
+	return ret
+}
+
+func (i *Installable) GetArchVariants() []string {
+	ret := []string{}
+	for _, v := range i.Variants {
+		if v.Arch == "" {
+			continue
+		}
+		if !slices.Contains(ret, v.Arch) {
+			ret = append(ret, v.Arch)
+		}
+	}
+	return ret
+}
+
+// assetListToInstallableList takes a list of assets and organizes them into
+// consolidated installables or plain asssets.
+func assetListToInstallableList(assets []AssetDataProvider) []AssetDataProvider {
 	// Find installable clusters
 	splitterRegex := regexp.MustCompile(system.MainSplitPattern())
 	ret := []AssetDataProvider{}
@@ -52,12 +95,40 @@ func assetListToInstallableList(assets []AssetDataProvider) {
 			}
 		}
 
+		arch, os := getArchOsFromFilename(asset.GetName())
+		installables[name].Variants = append(installables[name].Variants,
+			&Asset{
+				Host:        asset.GetHost(),
+				Repo:        asset.GetRepo(),
+				Org:         asset.GetOrg(),
+				Version:     asset.GetVersion(),
+				Name:        asset.GetName(),
+				DownloadURL: asset.GetDownloadURL(),
+				Author:      asset.GetAuthor(),
+				Size:        asset.GetSize(),
+				Label:       asset.GetLabel(),
+				CreatedAt:   asset.GetCreatedAt(),
+				UpdatedAt:   asset.GetUpdatedAt(),
+				Arch:        arch,
+				Os:          os,
+			},
+		)
 	}
+
+	for _, i := range installables {
+		ret = append(ret, i)
+	}
+
+	slices.SortFunc(ret, func(a, b AssetDataProvider) int {
+		return cmp.Compare(a.GetName(), a.GetName())
+	})
+
+	return ret
 }
 
 // getArchOsFromFilename reads a filename and looks for the known OS and Arch
 // labels in it.
-func getArchOsFromFilename(filename string) (string, string) {
+func getArchOsFromFilename(filename string) (arch, os string) {
 	return getArchFromFilename(filename), getOsFromFilename(filename)
 }
 
@@ -68,6 +139,19 @@ func getOsFromFilename(filename string) string {
 		if aliases.ToRegex().MatchString(filename) {
 			return os
 		}
+	}
+
+	// If it's a package then we know
+	if strings.HasSuffix(filename, ".rpm") || strings.HasSuffix(filename, ".deb") || strings.HasSuffix(filename, ".apk") {
+		return system.OSLinux
+	}
+
+	if strings.HasSuffix(filename, ".exe") {
+		return system.OSWindows
+	}
+
+	if strings.HasSuffix(filename, ".dmg") {
+		return system.OSDarwin
 	}
 	return ""
 }
@@ -94,4 +178,48 @@ func trimSeparatorSuffix(name string) string {
 		return name[0 : len(name)-1]
 	}
 	return name
+}
+
+func (i *Installable) GetHost() string {
+	return i.Host
+}
+
+func (i *Installable) GetRepo() string {
+	return i.Repo
+}
+
+func (i *Installable) GetOrg() string {
+	return i.Org
+}
+
+func (i *Installable) GetVersion() string {
+	return i.Version
+}
+
+func (i *Installable) GetName() string {
+	return i.Name
+}
+
+func (i *Installable) GetAuthor() string {
+	return i.Author
+}
+
+func (i *Installable) GetSize() int {
+	return i.Size
+}
+
+func (i *Installable) GetCreatedAt() time.Time {
+	return i.CreatedAt
+}
+
+func (i *Installable) GetUpdatedAt() time.Time {
+	return i.UpdatedAt
+}
+
+func (i *Installable) GetDownloadURL() string {
+	return i.DownloadURL
+}
+
+func (i *Installable) GetLabel() string {
+	return i.Label
 }

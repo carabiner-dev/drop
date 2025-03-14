@@ -26,4 +26,6 @@ type AssetDataProvider interface {
 	GetSize() int
 	GetCreatedAt() time.Time
 	GetUpdatedAt() time.Time
+	GetDownloadURL() string
+	GetLabel() string
 }

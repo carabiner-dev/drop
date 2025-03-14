@@ -26,6 +26,7 @@ const (
 	OSWindows = "windows"
 	OSLinux   = "linux"
 	OSDarwin  = "darwin"
+	OSFreeBSD = "freebsd"
 
 	// Base arches
 	ArchX8664   = "x86_64"
@@ -112,9 +113,10 @@ func (ll *LabelList) ToRegex() *regexp.Regexp {
 }
 
 var OSAliases = map[string]LabelList{
+	OSLinux:   {OSLinux},
 	OSWindows: {OSWindows},
 	OSDarwin:  {OSDarwin},
-	OSLinux:   {OSLinux},
+	OSFreeBSD: {OSFreeBSD},
 }
 
 var ArchAliases = map[string]LabelList{

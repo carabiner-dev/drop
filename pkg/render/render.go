@@ -42,8 +42,12 @@ type Engine struct {
 type Driver interface {
 	RenderReleaseAssets(io.Writer, github.ReleaseDataProvider, []github.AssetDataProvider) error
 	RenderRepoReleases(io.Writer, github.RepoDataProvider, []github.ReleaseDataProvider) error
+	RenderReleaseInstallables(io.Writer, github.ReleaseDataProvider, []github.AssetDataProvider) error
 }
 
+func (e *Engine) RenderReleaseInstallables(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
+	return e.driver.RenderReleaseInstallables(w, release, assets)
+}
 func (e *Engine) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
 	return e.driver.RenderReleaseAssets(w, release, assets)
 }

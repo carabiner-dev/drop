@@ -18,6 +18,7 @@ import (
 type lsOptions struct {
 	AppUrl string
 	Long   bool
+	All    bool
 }
 
 // Validates the options in context with arguments
@@ -34,6 +35,10 @@ func (lo *lsOptions) Validate() error {
 func (lo *lsOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(
 		&lo.Long, "long", "l", false, "list in long format",
+	)
+
+	cmd.PersistentFlags().BoolVarP(
+		&lo.All, "all", "a", false, "don't consolidate assets into installables",
 	)
 }
 
@@ -87,11 +92,19 @@ func addLs(parentCmd *cobra.Command) {
 
 			// If the URL has a version, then we list a release
 			if asset.GetVersion() != "" || asset.GetVersion() == "latest" {
-				list, err := client.ListReleaseAssets(asset)
-				if err != nil {
-					return err
+				if opts.All {
+					list, err := client.ListReleaseAssets(asset)
+					if err != nil {
+						return err
+					}
+					return eng.RenderReleaseAssets(out, asset, list)
+				} else {
+					list, err := client.ListReleaseInstallables(asset)
+					if err != nil {
+						return err
+					}
+					return eng.RenderReleaseInstallables(out, asset, list)
 				}
-				return eng.RenderReleaseAssets(out, asset, list)
 			} else {
 				releases, err := client.ListReleases(asset)
 				if err != nil {

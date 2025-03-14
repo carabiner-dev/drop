@@ -95,6 +95,14 @@ func (c *Client) ListReleases(rdata RepoDataProvider) ([]ReleaseDataProvider, er
 	return ret, nil
 }
 
+func (c *Client) ListReleaseInstallables(rdata ReleaseDataProvider) ([]AssetDataProvider, error) {
+	assets, err := c.ListReleaseAssets(rdata)
+	if err != nil {
+		return nil, err
+	}
+	return assetListToInstallableList(assets), nil
+}
+
 func (c *Client) ListReleaseAssets(rdata ReleaseDataProvider) ([]AssetDataProvider, error) {
 	releases, _, err := c.client.Repositories.ListReleases(
 		context.Background(), rdata.GetOrg(), rdata.GetRepo(), &gogithub.ListOptions{

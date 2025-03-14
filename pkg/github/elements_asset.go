@@ -10,6 +10,7 @@ import (
 )
 
 func newAssetFromGitHubAsset(src ReleaseDataProvider, asset *gogithub.ReleaseAsset) *Asset {
+	arch, os := getArchOsFromFilename(asset.GetName())
 	return &Asset{
 		Host:        src.GetHost(),
 		Org:         src.GetOrg(),
@@ -22,6 +23,8 @@ func newAssetFromGitHubAsset(src ReleaseDataProvider, asset *gogithub.ReleaseAss
 		UpdatedAt:   *asset.UpdatedAt.GetTime(),
 		Size:        asset.GetSize(),
 		Label:       asset.GetLabel(),
+		Os:          os,
+		Arch:        arch,
 	}
 }
 
@@ -42,6 +45,8 @@ type Asset struct {
 	Label       string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	Arch        string
+	Os          string
 }
 
 func (a *Asset) GetHost() string {
@@ -78,4 +83,12 @@ func (a *Asset) GetCreatedAt() time.Time {
 
 func (a *Asset) GetUpdatedAt() time.Time {
 	return a.UpdatedAt
+}
+
+func (a *Asset) GetDownloadURL() string {
+	return a.DownloadURL
+}
+
+func (a *Asset) GetLabel() string {
+	return a.Label
 }

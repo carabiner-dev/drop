@@ -6,9 +6,11 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/system"
 	"github.com/rodaine/table"
 )
 
@@ -52,6 +54,77 @@ func columnTable(w io.Writer, numCols int, data []string) {
 	tbl.SetRows(rows).Print()
 }
 
+func permString(item github.AssetDataProvider) string {
+	str := []rune("TLMW------")
+	if inst, ok := item.(*github.Installable); ok {
+		str[0] = 'I'
+		oss := inst.GetOsVariants()
+		if slices.Contains(oss, system.OSLinux) {
+			str[1] = '🐧'
+		} else {
+			str[1] = '➖'
+		}
+		if slices.Contains(oss, system.OSDarwin) {
+			str[2] = '🍏'
+		} else {
+			str[2] = '➖'
+		}
+		if slices.Contains(oss, system.OSDarwin) {
+			str[3] = '🪟'
+		} else {
+			str[3] = '➖'
+		}
+	} else if asst, ok := item.(*github.Asset); ok {
+		str[0] = 'A'
+		if asst.Os == system.OSLinux {
+			str[1] = '🐧'
+		} else {
+			str[1] = '➖'
+		}
+		if asst.Os == system.OSDarwin {
+			str[2] = '🍏'
+		} else {
+			str[2] = '➖'
+		}
+		if asst.Os == system.OSDarwin {
+			str[3] = '🪟'
+		} else {
+			str[3] = '➖'
+		}
+	}
+
+	return string(str)
+}
+
+func (ls *LsTTY) RenderReleaseInstallables(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
+	if ls.Options.Long {
+		tbl := table.New("perms", "owner", "org", "size", "month", "day", "hour", "name")
+		tbl.WithHeaderFormatter(func(format string, vals ...any) string {
+			return fmt.Sprintf("total %d\n", len(assets))
+		})
+		tbl.WithWriter(w)
+
+		for _, a := range assets {
+			m := a.GetUpdatedAt().Month().String()[0:3]
+			d := fmt.Sprintf("%d", a.GetUpdatedAt().Day())
+			h := fmt.Sprintf("%2d:%2d", a.GetUpdatedAt().Local().Hour(), a.GetUpdatedAt().Local().Minute())
+			if a.GetUpdatedAt().Year() != time.Now().Year() {
+				h = fmt.Sprintf("%d", a.GetUpdatedAt().Year())
+			}
+			tbl.AddRow(permString(a), a.GetAuthor(), release.GetOrg(), a.GetSize(), m, d, h, a.GetName())
+		}
+
+		tbl.Print()
+	} else {
+		data := []string{}
+		for _, a := range assets {
+			data = append(data, a.GetName())
+		}
+		columnTable(w, 3, data)
+	}
+	return nil
+}
+
 func (ls *LsTTY) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
 	if ls.Options.Long {
 		tbl := table.New("perms", "owner", "org", "size", "month", "day", "hour", "name")
@@ -67,7 +140,7 @@ func (ls *LsTTY) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProv
 			if a.GetUpdatedAt().Year() != time.Now().Year() {
 				h = fmt.Sprintf("%d", a.GetUpdatedAt().Year())
 			}
-			tbl.AddRow("assset", a.GetAuthor(), release.GetOrg(), a.GetSize(), m, d, h, a.GetName())
+			tbl.AddRow(permString(a), a.GetAuthor(), release.GetOrg(), a.GetSize(), m, d, h, a.GetName())
 		}
 
 		tbl.Print()
