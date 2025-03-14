@@ -115,7 +115,13 @@ func (c *Client) ListReleaseAssets(rdata ReleaseDataProvider) ([]AssetDataProvid
 
 	for _, r := range releases {
 		if rdata.GetVersion() == "" || rdata.GetVersion() == "latest" {
-			return buildReleaseAssets(rdata, r), nil
+			newRelease := &Release{
+				Host:    rdata.GetHost(),
+				Repo:    rdata.GetRepo(),
+				Org:     rdata.GetOrg(),
+				Version: r.GetTagName(),
+			}
+			return buildReleaseAssets(newRelease, r), nil
 		}
 
 		if rdata.GetVersion() == r.GetTagName() {
