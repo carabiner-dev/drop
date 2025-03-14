@@ -87,9 +87,16 @@ func (i *Installable) GetArchVariants() []string {
 	return ret
 }
 
+const finalDigitPattern = `-\d+$`
+
+var finalDigitRegex *regexp.Regexp
+
 // assetListToInstallableList takes a list of assets and organizes them into
 // consolidated installables or plain asssets.
 func assetListToInstallableList(assets []AssetDataProvider) []AssetDataProvider {
+	if finalDigitRegex == nil {
+		finalDigitRegex = regexp.MustCompile(finalDigitPattern)
+	}
 	// Find installable clusters
 	splitterRegex := regexp.MustCompile(system.MainSplitPattern())
 	ret := []AssetDataProvider{}
@@ -113,9 +120,12 @@ func assetListToInstallableList(assets []AssetDataProvider) []AssetDataProvider 
 		if asset.GetVersion() != "" {
 			if strings.HasSuffix(name, asset.GetVersion()) {
 				name = trimSeparatorSuffix(strings.TrimSuffix(name, asset.GetVersion()))
-				// Handle if the version has a v before (but the nombre does not)
-			} else if (strings.HasPrefix(asset.GetVersion(), "v")) && strings.HasSuffix(name, asset.GetVersion()[1:]) {
+				// ... handle if the version has a v before (but the nombre does not)
+			} else if strings.HasPrefix(asset.GetVersion(), "v") && strings.HasSuffix(name, asset.GetVersion()[1:]) {
 				name = trimSeparatorSuffix(strings.TrimSuffix(name, asset.GetVersion()[1:]))
+				// ... also check if it's an RPM and has a relase attached
+			} else if strings.HasPrefix(parts[len(parts)-1], ".rpm") && finalDigitRegex.MatchString(name) {
+				name = trimRpmRelease(name, asset.GetVersion())
 			}
 		}
 
@@ -159,6 +169,26 @@ func assetListToInstallableList(assets []AssetDataProvider) []AssetDataProvider 
 	})
 
 	return ret
+}
+
+// Trim release strings from RPM filemames (numeric)
+func trimRpmRelease(name, version string) string {
+	digits := finalDigitRegex.FindString(name)
+	if digits == "" {
+		return name
+	}
+
+	if strings.HasSuffix(name, version+digits) {
+		return trimSeparatorSuffix(strings.TrimSuffix(name, version+digits))
+	}
+
+	if version[:1] == "v" {
+		if strings.HasSuffix(name, version[1:]+digits) {
+			return trimSeparatorSuffix(strings.TrimSuffix(name, version[1:]+digits))
+		}
+	}
+
+	return name
 }
 
 // getArchOsFromFilename reads a filename and looks for the known OS and Arch
