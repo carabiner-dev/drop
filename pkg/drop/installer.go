@@ -12,41 +12,60 @@ import (
 
 var ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
 
-type Installer struct {
+type Dropper struct {
 	Options Options
-	client  github.Client
+	client  *github.Client
 	impl    installerImplementation
 }
+
+func New() (*Dropper, error) {
+	opts := defaultOptions
+	// TODO(puerco): Get functional opts
+
+	// Create github client
+	client, err := github.New()
+	if err != nil {
+		return nil, fmt.Errorf("creating github client: %w", err)
+	}
+
+	return &Dropper{
+		Options: opts,
+		client:  client,
+		impl:    &defaultImplementation{},
+	}, nil
+}
+
+var defaultOptions = Options{}
 
 type Options struct {
 }
 
 // Install downloads, verifies and installs an artifact from a release
-func (installer *Installer) Install(spec github.AssetDataProvider) error {
-	sysinfo, err := installer.impl.GetSystemInfo(&installer.Options)
+func (dropper *Dropper) Install(spec github.AssetDataProvider) error {
+	sysinfo, err := dropper.impl.GetSystemInfo(&dropper.Options)
 	if err != nil {
 		return fmt.Errorf("reading system information: %w", err)
 	}
 
-	asset, err := installer.impl.ChooseAsset(&installer.Options, spec, sysinfo)
+	asset, err := dropper.impl.ChooseAsset(&dropper.Options, spec, sysinfo)
 	if err != nil {
 		return fmt.Errorf("unable to locate a suitable asset: %w", err)
 	}
 
 	// Look for the asset polcies
-	policies, err := installer.impl.FetchPolicies(&installer.Options, asset)
+	policies, err := dropper.impl.FetchPolicies(&dropper.Options, asset)
 	if err != nil {
 		return fmt.Errorf("finding asset polcies: %w", err)
 	}
 
 	// Downlad the asset to install
-	downloadPath, err := installer.impl.DownloadAssetToTmp(&installer.Options, asset)
+	downloadPath, err := dropper.impl.DownloadAssetToTmp(&dropper.Options, asset)
 	if err != nil {
 		return fmt.Errorf("downloading asset: %w", err)
 	}
 
 	// Verify the asset data
-	ok, err := installer.impl.VerifyAsset(&installer.Options, policies, asset, downloadPath)
+	ok, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
 	if err != nil {
 		return fmt.Errorf("error verifying asset: %w", err)
 	}
@@ -59,7 +78,7 @@ func (installer *Installer) Install(spec github.AssetDataProvider) error {
 	// TODO(puerco): Probably here we should output a summary of the verification
 
 	// Install the asset in the system
-	if err := installer.impl.InstallAsset(&installer.Options, sysinfo, downloadPath); err != nil {
+	if err := dropper.impl.InstallAsset(&dropper.Options, sysinfo, downloadPath); err != nil {
 		return fmt.Errorf("installing asset: %w", err)
 	}
 
