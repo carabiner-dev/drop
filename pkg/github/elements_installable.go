@@ -97,6 +97,18 @@ func assetListToInstallableList(assets []AssetDataProvider) []AssetDataProvider 
 
 		// Otherwise it is a variant of an installable
 		name := trimSeparatorSuffix(parts[0])
+
+		// If the name has the version appended, trim it. This normalizes
+		// repos that append the version to the binary names
+		if asset.GetVersion() != "" {
+			if strings.HasSuffix(name, asset.GetVersion()) {
+				name = trimSeparatorSuffix(strings.TrimSuffix(name, asset.GetVersion()))
+				// Handle if the version has a v before (but the nombre does not)
+			} else if (strings.HasPrefix(asset.GetVersion(), "v")) && strings.HasSuffix(name, asset.GetVersion()[1:]) {
+				name = trimSeparatorSuffix(strings.TrimSuffix(name, asset.GetVersion()[1:]))
+			}
+		}
+
 		if _, ok := installables[name]; !ok {
 			installables[name] = &Installable{
 				Host:     asset.GetHost(),
