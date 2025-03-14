@@ -65,7 +65,7 @@ func permString(item github.AssetDataProvider) string {
 		if slices.Contains(oss, system.OSDarwin) {
 			str[2] = '🍏'
 		}
-		if slices.Contains(oss, system.OSDarwin) {
+		if slices.Contains(oss, system.OSWindows) {
 			str[3] = '🪟'
 		}
 		if len(inst.GetPackageTypes()) > 0 {

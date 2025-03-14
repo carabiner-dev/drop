@@ -238,7 +238,7 @@ func getOsFromFilename(filename string) string {
 		return system.OSLinux
 	}
 
-	if strings.HasSuffix(filename, ".exe") {
+	if strings.HasSuffix(filename, ".exe") || strings.HasSuffix(filename, ".msi") {
 		return system.OSWindows
 	}
 
