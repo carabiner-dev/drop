@@ -133,6 +133,26 @@ var ArchAliases = map[string]LabelList{
 	ArchPPC64LE: {ArchPPC64LE, ArchPPC64EL, ArchPPC64},
 }
 
+const (
+	PackageRPM = "rpm"
+	PackageDeb = "deb"
+	PackageApk = "apk"
+	PackageDmg = "dmg"
+
+	ArchiveZip = "zip"
+	ArchiveTar = "tar"
+	ArchiveBz  = "bz"
+	ArchiveBz2 = "bz2"
+	ArchiveGz  = "gz"
+	ArchiveXz  = "xz"
+	ArchiveRar = "rar"
+	ArchiveL7  = "l7"
+	ArchiveTgz = "tgz"
+)
+
+var PackageTypes = []string{PackageRPM, PackageDeb, PackageApk, PackageDmg}
+var ArchiveTypes = []string{ArchiveZip, ArchiveTar, ArchiveBz, ArchiveBz2, ArchiveGz, ArchiveXz, ArchiveRar, ArchiveL7, ArchiveTgz}
+
 type Info struct {
 	Os   string
 	Arch string

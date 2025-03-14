@@ -5,6 +5,7 @@ package github
 
 import (
 	"cmp"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -82,6 +83,32 @@ func (i *Installable) GetArchVariants() []string {
 		}
 		if !slices.Contains(ret, v.Arch) {
 			ret = append(ret, v.Arch)
+		}
+	}
+	return ret
+}
+
+func (i *Installable) GetArchiveTypes() []string {
+	ret := []string{}
+	for _, v := range i.Variants {
+		ext := filepath.Ext(v.Name)
+		if ext != "" {
+			if slices.Contains(system.ArchiveTypes, ext[1:]) {
+				ret = append(ret, ext)
+			}
+		}
+	}
+	return ret
+}
+
+func (i *Installable) GetPackageTypes() []string {
+	ret := []string{}
+	for _, v := range i.Variants {
+		ext := filepath.Ext(v.Name)
+		if ext != "" {
+			if slices.Contains(system.PackageTypes, ext[1:]) {
+				ret = append(ret, ext)
+			}
 		}
 	}
 	return ret
