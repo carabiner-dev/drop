@@ -68,7 +68,7 @@ func MainSplitPattern() string {
 			return cmp.Compare(len(a), len(b)) * -1
 		})
 
-	return "(" + strings.Join(all, "|") + ")"
+	return "(?i)(" + strings.Join(all, "|") + ")"
 
 }
 
@@ -105,7 +105,7 @@ func (ll *LabelList) ToRegex() *regexp.Regexp {
 	}
 
 	// Build the whole pattern
-	pattern := "(" + strings.Join(list, "|") + ")"
+	pattern := "(?i)(" + strings.Join(list, "|") + ")"
 	if _, ok := regexCache[pattern]; !ok {
 		regexCache[pattern] = regexp.MustCompile(pattern)
 	}
