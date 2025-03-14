@@ -4,7 +4,14 @@
 package drop
 
 import (
+	"fmt"
+	"io"
+	"os"
+
+	"sigs.k8s.io/release-utils/http"
+
 	ampel "github.com/carabiner-dev/ampel/pkg/api/v1"
+
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
 )
@@ -23,6 +30,9 @@ type installerImplementation interface {
 
 	// Download asset gets a file from a github release and makes it available in a directory
 	DownloadAssetToTmp(*Options, github.AssetDataProvider) (string, error)
+
+	// DownloadAssetToWriter gets an asset from a release to an already opened file
+	DownloadAssetToWriter(*Options, io.Writer, github.AssetDataProvider) error
 
 	// VerifyAsset verifies that a file complioes with a set of policies
 	VerifyAsset(*Options, []ampel.PolicySet, github.AssetDataProvider, string) (bool, error)
@@ -43,12 +53,36 @@ func (di *defaultImplementation) ChooseAsset(*Options, github.AssetDataProvider,
 func (di *defaultImplementation) FetchPolicies(*Options, github.AssetDataProvider) ([]ampel.PolicySet, error) {
 	return nil, nil
 }
-func (di *defaultImplementation) DownloadAssetToTmp(*Options, github.AssetDataProvider) (string, error) {
-	return "", nil
+
+// DownloadAssetToTmp fetches the asset to a temporary location
+func (di *defaultImplementation) DownloadAssetToTmp(opts *Options, asset github.AssetDataProvider) (string, error) {
+	tmpfile, err := os.CreateTemp("", "drop-download-")
+	if err != nil {
+		return "", fmt.Errorf("creating temporary file: %w", err)
+	}
+	defer tmpfile.Close()
+
+	// Get the data
+	if err := di.DownloadAssetToWriter(opts, tmpfile, asset); err != nil {
+		return "", err
+	}
+	return tmpfile.Name(), nil
 }
 func (di *defaultImplementation) VerifyAsset(*Options, []ampel.PolicySet, github.AssetDataProvider, string) (bool, error) {
 	return false, nil
 }
 func (di *defaultImplementation) InstallAsset(*Options, *system.Info, string) error {
+	return nil
+}
+
+// DownloadAssetToWriter downloads the asset data to the supplied writer
+func (di *defaultImplementation) DownloadAssetToWriter(opts *Options, w io.Writer, asset github.AssetDataProvider) error {
+	if asset.GetDownloadURL() == "" {
+		return fmt.Errorf("asset has nor download URL defined")
+	}
+	agent := http.NewAgent()
+	if err := agent.GetToWriter(w, asset.GetDownloadURL()); err != nil {
+		return fmt.Errorf("fetching data: %w", err)
+	}
 	return nil
 }
