@@ -4,6 +4,7 @@
 package drop
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,11 @@ import (
 	"sigs.k8s.io/release-utils/http"
 
 	ampel "github.com/carabiner-dev/ampel/pkg/api/v1"
+	"github.com/carabiner-dev/ampel/pkg/attestation"
+	"github.com/carabiner-dev/ampel/pkg/collector"
+	"github.com/carabiner-dev/ampel/pkg/policy"
+	gitcollector "github.com/carabiner-dev/ampel/pkg/repository/git"
+	"github.com/sirupsen/logrus"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
@@ -26,7 +32,7 @@ type installerImplementation interface {
 	ChooseAsset(*Options, github.AssetDataProvider, *system.Info) (github.AssetDataProvider, error)
 
 	// Fetch policies uses a provider to look for policies in a structured data source.
-	FetchPolicies(*Options, github.AssetDataProvider) ([]ampel.PolicySet, error)
+	FetchPolicies(*Options, github.AssetDataProvider) ([]*ampel.PolicySet, error)
 
 	// Download asset gets a file from a github release and makes it available in a directory
 	DownloadAssetToTmp(*Options, github.AssetDataProvider) (string, error)
@@ -34,8 +40,11 @@ type installerImplementation interface {
 	// DownloadAssetToWriter gets an asset from a release to an already opened file
 	DownloadAssetToWriter(*Options, io.Writer, github.AssetDataProvider) error
 
+	// DownloadAssetToWriter gets an asset from a release to an already opened file
+	DownloadAssetToFile(*Options, string, github.AssetDataProvider) error
+
 	// VerifyAsset verifies that a file complioes with a set of policies
-	VerifyAsset(*Options, []ampel.PolicySet, github.AssetDataProvider, string) (bool, error)
+	VerifyAsset(*Options, []*ampel.PolicySet, github.AssetDataProvider, string) (bool, error)
 
 	// InstallAsset invokes the system mechanism to set up the downloaded artifact
 	// in the local machine.
@@ -50,8 +59,58 @@ func (di *defaultImplementation) GetSystemInfo(*Options) (*system.Info, error) {
 func (di *defaultImplementation) ChooseAsset(*Options, github.AssetDataProvider, *system.Info) (github.AssetDataProvider, error) {
 	return nil, nil
 }
-func (di *defaultImplementation) FetchPolicies(*Options, github.AssetDataProvider) ([]ampel.PolicySet, error) {
-	return nil, nil
+
+func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*ampel.PolicySet, error) {
+	// Create the git repository for the collector agent
+	arepo, err := gitcollector.New(
+		gitcollector.WithLocator(
+			fmt.Sprintf(
+				"git+https://%s/%s/.ampel/%s",
+				asset.GetHost(), asset.GetOrg(), asset.GetRepo(),
+			),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating git collector: %w", err)
+	}
+	// Create the attestation fetcher
+	agent, err := collector.New(
+		collector.WithRepository(arepo),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating collector agent: %w", err)
+	}
+
+	// Now, fetch all policy attestations
+	attestations, err := agent.FetchAttestationsByPredicateType(
+		context.Background(), []attestation.PredicateType{"https://carabiner.dev/ampel/results/v0.0.1"},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parsing policies: %w", err)
+	}
+
+	// Parse the policies from the attested data
+	var ret = []*ampel.PolicySet{}
+	var parser = policy.NewParser()
+	for _, att := range attestations {
+		// Since these attestations were already parsed, this
+		// should never happened but we still want to avoid panicking
+		if att.GetStatement() == nil {
+			logrus.Error("policy attestation has no statement")
+			continue
+		}
+		if att.GetStatement().GetPredicate() == nil {
+			logrus.Error("policy attestation has no predicate")
+			continue
+		}
+		pset, err := parser.ParseSet(att.GetStatement().GetPredicate().GetData())
+		if err != nil {
+			logrus.Error("parsing policy set: %w", err)
+			continue
+		}
+		ret = append(ret, pset)
+	}
+	return ret, nil
 }
 
 // DownloadAssetToTmp fetches the asset to a temporary location
@@ -68,7 +127,7 @@ func (di *defaultImplementation) DownloadAssetToTmp(opts *Options, asset github.
 	}
 	return tmpfile.Name(), nil
 }
-func (di *defaultImplementation) VerifyAsset(*Options, []ampel.PolicySet, github.AssetDataProvider, string) (bool, error) {
+func (di *defaultImplementation) VerifyAsset(*Options, []*ampel.PolicySet, github.AssetDataProvider, string) (bool, error) {
 	return false, nil
 }
 func (di *defaultImplementation) InstallAsset(*Options, *system.Info, string) error {
@@ -85,4 +144,13 @@ func (di *defaultImplementation) DownloadAssetToWriter(opts *Options, w io.Write
 		return fmt.Errorf("fetching data: %w", err)
 	}
 	return nil
+}
+
+func (di *defaultImplementation) DownloadAssetToFile(opts *Options, path string, asset github.AssetDataProvider) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("downloading file: %w", err)
+	}
+
+	return di.DownloadAssetToWriter(opts, f, asset)
 }

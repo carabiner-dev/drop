@@ -40,6 +40,31 @@ var defaultOptions = Options{}
 type Options struct {
 }
 
+func (dropper *Dropper) Get(asset github.AssetDataProvider, downloadPath string) error {
+	// Look for the asset polcies
+	policies, err := dropper.impl.FetchPolicies(&dropper.Options, asset)
+	if err != nil {
+		return fmt.Errorf("finding asset polcies: %w", err)
+	}
+
+	if err := dropper.impl.DownloadAssetToFile(&dropper.Options, downloadPath, asset); err != nil {
+		return fmt.Errorf("opening file: %w", err)
+	}
+
+	// Verify the asset data
+	ok, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
+	if err != nil {
+		return fmt.Errorf("error verifying asset: %w", err)
+	}
+
+	// If verification failed, we're done
+	if !ok {
+		return ErrVerificationFailed
+	}
+
+	return nil
+}
+
 // Install downloads, verifies and installs an artifact from a release
 func (dropper *Dropper) Install(spec github.AssetDataProvider) error {
 	sysinfo, err := dropper.impl.GetSystemInfo(&dropper.Options)
