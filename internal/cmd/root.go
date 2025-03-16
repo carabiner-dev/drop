@@ -12,16 +12,18 @@ import (
 	"sigs.k8s.io/release-utils/version"
 )
 
-const appname = "snappy"
+const appname = "drop"
 
 var rootCmd = &cobra.Command{
-	Short:             fmt.Sprintf("%s: install software from GitHub securely", appname),
-	Long:              fmt.Sprintf(`%s: install software from GitHub securely`, appname),
+	Long:              fmt.Sprintf(`%s: securely install software from GitHub`, appname),
+	Short:             fmt.Sprintf("%s: securely install software from GitHub", appname),
 	Use:               appname,
 	SilenceUsage:      false,
 	PersistentPreRunE: initLogging,
 	Example: fmt.Sprintf(`
-Create a snapshot of an API response:
+drop is a utility to install, update and download software from GitHub with
+focused on security. Drop uses the AMPEL policy engine to verifu the integrity
+of the binaries and packages you download and well as their supply chain. 
 
 	%s snap --ver REPO=example spec.yaml
 	`, appname),
@@ -45,6 +47,7 @@ func Execute() {
 	)
 	addInstall(rootCmd)
 	addLs(rootCmd)
+	addGet(rootCmd)
 	rootCmd.AddCommand(version.WithFont("doom"))
 
 	if err := rootCmd.Execute(); err != nil {
