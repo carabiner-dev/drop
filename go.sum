@@ -28,6 +28,8 @@ github.com/bradleyjkemp/cupaloy/v2 v2.8.0 h1:any4BmKE+jGIaMpnU8YgH/I2LPiLBufr6oM
 github.com/bradleyjkemp/cupaloy/v2 v2.8.0/go.mod h1:bm7JXdkRd4BHJk9HpwqAI8BoAY1lps46Enkdqw6aRX0=
 github.com/carabiner-dev/ampel v0.0.0-20250316035049-487c7de3d610 h1:39eLWLgKRvTrcpuyKFXptMlx4QQJU9PmNvL8A+yrPkU=
 github.com/carabiner-dev/ampel v0.0.0-20250316035049-487c7de3d610/go.mod h1:RVUlafzaRlepzbP9LD3VM1MTjkLoH6xa+0vD4VcYc1g=
+github.com/carabiner-dev/ampel v0.0.0-20250316234700-9be3a97835a2 h1:Jse5BsREWi2S0osxzLbeGQgCww4yGZBhgOW7CiyjHoM=
+github.com/carabiner-dev/ampel v0.0.0-20250316234700-9be3a97835a2/go.mod h1:RVUlafzaRlepzbP9LD3VM1MTjkLoH6xa+0vD4VcYc1g=
 github.com/carabiner-dev/github v0.1.1 h1:4CQeXqnKoK00c8kGU1oyUuixx8zYqhVXAWX/9oIRyoo=
 github.com/carabiner-dev/github v0.1.1/go.mod h1:+aE7mBcpsjiupba9wljgXQmDlt56ed1ACQWlHQcwmpw=
 github.com/carabiner-dev/osv v0.0.0-20250124012120-b8ce4531cd92 h1:BJ9+OCNezZGkU8SrGC3oB7Tj+J0JsonwfZztcgUav6c=

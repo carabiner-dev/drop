@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"sigs.k8s.io/release-utils/http"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/carabiner-dev/ampel/pkg/collector"
 	"github.com/carabiner-dev/ampel/pkg/policy"
 	gitcollector "github.com/carabiner-dev/ampel/pkg/repository/git"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/sirupsen/logrus"
 
 	"github.com/carabiner-dev/drop/pkg/github"
@@ -61,11 +63,18 @@ func (di *defaultImplementation) ChooseAsset(*Options, github.AssetDataProvider,
 }
 
 func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*ampel.PolicySet, error) {
+	repoBaseUrl := fmt.Sprintf(
+		"git+https://%s/%s/%s", asset.GetHost(), asset.GetOrg(), defaultPolicyRepo,
+	)
+	if opts.PolicyRepository != "" {
+		repoBaseUrl = opts.PolicyRepository
+	}
+
 	// Create the git repository for the collector agent
 	arepo, err := gitcollector.New(
 		gitcollector.WithLocator(
 			fmt.Sprintf(
-				"git+https://%s/%s/.ampel/%s",
+				"%s#policy/%s/%s/%s", repoBaseUrl,
 				asset.GetHost(), asset.GetOrg(), asset.GetRepo(),
 			),
 		),
@@ -85,16 +94,32 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 	attestations, err := agent.FetchAttestationsByPredicateType(
 		context.Background(), []attestation.PredicateType{"https://carabiner.dev/ampel/results/v0.0.1"},
 	)
+	// If there were errors fetching attestations, there are two special
+	// cases we want to handle as non-errors:
 	if err != nil {
-		return nil, fmt.Errorf("parsing policies: %w", err)
+		// 1. The org has no ampel repository.
+		// This error also returns if the requires auth
+		if strings.Contains(err.Error(), transport.ErrRepositoryNotFound.Error()) {
+			logrus.Debugf("policy repository does not exist")
+			return []*ampel.PolicySet{}, nil
+		}
+
+		// 2. The policy repo exists, but the specified path does not exist.
+		if strings.Contains(err.Error(), "file does not exist") {
+			logrus.Debug("policy repository has no policies for repo")
+			return []*ampel.PolicySet{}, nil
+		}
+
+		// Otherwise it is a true error
+		return nil, fmt.Errorf("fetching policies: %w", err)
 	}
 
 	// Parse the policies from the attested data
 	var ret = []*ampel.PolicySet{}
 	var parser = policy.NewParser()
 	for _, att := range attestations {
-		// Since these attestations were already parsed, this
-		// should never happened but we still want to avoid panicking
+		// Since these attestations were already parsed, these two
+		// should never happen, but we still want to avoid panics:
 		if att.GetStatement() == nil {
 			logrus.Error("policy attestation has no statement")
 			continue

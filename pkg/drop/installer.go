@@ -10,6 +10,9 @@ import (
 	"github.com/carabiner-dev/drop/pkg/github"
 )
 
+const defaultPolicyRepo = ".ampel"
+
+var ErrNoPolicyAvailable = errors.New("no verification policies available for artifact")
 var ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
 
 type Dropper struct {
@@ -38,6 +41,7 @@ func New() (*Dropper, error) {
 var defaultOptions = Options{}
 
 type Options struct {
+	PolicyRepository string
 }
 
 func (dropper *Dropper) Get(asset github.AssetDataProvider, downloadPath string) error {
@@ -45,6 +49,10 @@ func (dropper *Dropper) Get(asset github.AssetDataProvider, downloadPath string)
 	policies, err := dropper.impl.FetchPolicies(&dropper.Options, asset)
 	if err != nil {
 		return fmt.Errorf("finding asset polcies: %w", err)
+	}
+
+	if len(policies) == 0 {
+		return ErrNoPolicyAvailable
 	}
 
 	if err := dropper.impl.DownloadAssetToFile(&dropper.Options, downloadPath, asset); err != nil {
