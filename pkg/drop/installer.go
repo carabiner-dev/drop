@@ -21,7 +21,7 @@ type Dropper struct {
 	impl    installerImplementation
 }
 
-func New() (*Dropper, error) {
+func New(funcs ...FuncOption) (*Dropper, error) {
 	opts := defaultOptions
 	// TODO(puerco): Get functional opts
 
@@ -31,17 +31,18 @@ func New() (*Dropper, error) {
 		return nil, fmt.Errorf("creating github client: %w", err)
 	}
 
-	return &Dropper{
+	d := &Dropper{
 		Options: opts,
 		client:  client,
 		impl:    &defaultImplementation{},
-	}, nil
-}
+	}
 
-var defaultOptions = Options{}
-
-type Options struct {
-	PolicyRepository string
+	for _, fn := range funcs {
+		if err := fn(d); err != nil {
+			return nil, err
+		}
+	}
+	return d, nil
 }
 
 func (dropper *Dropper) Get(asset github.AssetDataProvider, downloadPath string) error {
