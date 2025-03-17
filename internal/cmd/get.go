@@ -94,7 +94,11 @@ func addGet(parentCmd *cobra.Command) {
 			}
 
 			// Run the download:
-			if err := dropper.Get(asset, drop.WithDownloadPath("."), drop.WithPlatform(opts.Platform)); err != nil {
+			if err := dropper.Get(
+				asset,
+				drop.WithDownloadPath("."),
+				drop.WithPlatform(opts.Platform),
+			); err != nil {
 				return fmt.Errorf("error downloading: %w", err)
 			}
 			return nil

@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/carabiner-dev/ampel v0.0.0-20250317053747-98f528b32291
-	github.com/go-git/go-git/v5 v5.14.0
+	github.com/fatih/color v1.18.0
 	github.com/google/go-github/v60 v60.0.0
 	github.com/rodaine/table v1.3.0
 	github.com/sirupsen/logrus v1.9.3
@@ -35,6 +35,7 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
+	github.com/go-git/go-git/v5 v5.14.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -47,6 +48,7 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20240620165639-de9c06129bec // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
