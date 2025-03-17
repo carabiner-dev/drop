@@ -85,6 +85,7 @@ func addGet(parentCmd *cobra.Command) {
 				asset.Host = "github.com"
 			}
 
+			// Create the new dropper instance
 			dropper, err := drop.New(
 				drop.WithPolicyRepository(opts.PolicyRepo),
 			)
@@ -92,7 +93,8 @@ func addGet(parentCmd *cobra.Command) {
 				return fmt.Errorf("cerating dropper: %w", err)
 			}
 
-			if err := dropper.Get(asset, drop.WithDownloadPath(".")); err != nil {
+			// Run the download:
+			if err := dropper.Get(asset, drop.WithDownloadPath("."), drop.WithPlatform(opts.Platform)); err != nil {
 				return fmt.Errorf("error downloading: %w", err)
 			}
 			return nil

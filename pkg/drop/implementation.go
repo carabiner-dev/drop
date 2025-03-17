@@ -67,8 +67,13 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 	}
 
 	// We look a for an installable with the same name as the repo
+	name := spec.GetRepo()
+	// .. unless the asset get has a name
+	if spec.GetName() != "" {
+		name = spec.GetName()
+	}
 	for _, asset := range assets {
-		if asset.GetName() == spec.GetRepo() {
+		if asset.GetName() == name {
 			// Found. Now check if it has variants for the local OS
 			if installable, ok := asset.(*github.Installable); ok {
 				for _, variant := range installable.Variants {
@@ -76,6 +81,8 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 						return variant, nil
 					}
 				}
+				logrus.Debugf("no variant found for %s/%s", opts.OS, opts.Arch)
+				return nil, ErrNoPlatformVariant
 			}
 		}
 	}

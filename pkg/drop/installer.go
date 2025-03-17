@@ -14,6 +14,7 @@ const defaultPolicyRepo = ".ampel"
 
 var ErrNoPolicyAvailable = errors.New("no verification policies available for artifact")
 var ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
+var ErrNoPlatformVariant = errors.New("no installable variant found for the specified platform")
 
 type Dropper struct {
 	Options Options

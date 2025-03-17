@@ -45,12 +45,13 @@ func WithPolicyRepository(repoURL string) FuncOption {
 func WithPlatform(slug string) FuncGetOption {
 	return func(o *GetOptions) error {
 		os, arch, _ := strings.Cut(slug, "/")
-		if _, ok := system.OSAliases[os]; !ok {
+		if os = system.GetOS(os); os == "" {
 			return errors.New("invalid OS in platform slug")
 		}
-		if _, ok := system.ArchAliases[os]; !ok {
+		if arch = system.GetArch(arch); arch == "" {
 			return errors.New("invalid arch in platform slug")
 		}
+
 		o.OS = os
 		o.Arch = arch
 		return nil
