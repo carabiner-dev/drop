@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"sigs.k8s.io/release-utils/http"
 	"sigs.k8s.io/release-utils/util"
@@ -38,10 +39,10 @@ type installerImplementation interface {
 	FetchPolicies(*Options, github.AssetDataProvider) ([]*ampel.PolicySet, error)
 
 	// Download asset gets a file from a github release and makes it available in a directory
-	DownloadAssetToTmp(*Options, github.AssetDataProvider) (string, error)
+	DownloadAssetToTmp(*GetOptions, github.AssetDataProvider) (string, error)
 
 	// DownloadAssetToWriter gets an asset from a release to an already opened file
-	DownloadAssetToWriter(*Options, io.Writer, github.AssetDataProvider) error
+	DownloadAssetToWriter(*GetOptions, io.Writer, github.AssetDataProvider) error
 
 	// DownloadAssetToWriter gets an asset from a release to an already opened file
 	DownloadAssetToFile(*GetOptions, github.AssetDataProvider) error
@@ -170,7 +171,7 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 }
 
 // DownloadAssetToTmp fetches the asset to a temporary location
-func (di *defaultImplementation) DownloadAssetToTmp(_ *Options, asset github.AssetDataProvider) (string, error) {
+func (di *defaultImplementation) DownloadAssetToTmp(opts *GetOptions, asset github.AssetDataProvider) (string, error) {
 	tmpfile, err := os.CreateTemp("", "drop-download-")
 	if err != nil {
 		return "", fmt.Errorf("creating temporary file: %w", err)
@@ -178,7 +179,7 @@ func (di *defaultImplementation) DownloadAssetToTmp(_ *Options, asset github.Ass
 	defer tmpfile.Close()
 
 	// Get the data
-	if err := di.DownloadAssetToWriter(nil, tmpfile, asset); err != nil {
+	if err := di.DownloadAssetToWriter(opts, tmpfile, asset); err != nil {
 		return "", err
 	}
 	return tmpfile.Name(), nil
@@ -191,11 +192,11 @@ func (di *defaultImplementation) InstallAsset(*Options, *system.Info, string) er
 }
 
 // DownloadAssetToWriter downloads the asset data to the supplied writer
-func (di *defaultImplementation) DownloadAssetToWriter(_ *Options, w io.Writer, asset github.AssetDataProvider) error {
+func (di *defaultImplementation) DownloadAssetToWriter(opts *GetOptions, w io.Writer, asset github.AssetDataProvider) error {
 	if asset.GetDownloadURL() == "" {
 		return fmt.Errorf("asset has nor download URL defined")
 	}
-	agent := http.NewAgent()
+	agent := http.NewAgent().WithTimeout(time.Duration(opts.TransferTimeOut) * time.Second)
 	if err := agent.GetToWriter(w, asset.GetDownloadURL()); err != nil {
 		return fmt.Errorf("fetching data: %w", err)
 	}
@@ -221,6 +222,6 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 	if err != nil {
 		return fmt.Errorf("downloading file: %w", err)
 	}
-
-	return di.DownloadAssetToWriter(nil, f, asset)
+	defer f.Close()
+	return di.DownloadAssetToWriter(opts, f, asset)
 }

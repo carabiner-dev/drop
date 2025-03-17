@@ -17,6 +17,7 @@ type getOptions struct {
 	AppUrl     string
 	Platform   string
 	PolicyRepo string
+	Timeout    int
 }
 
 // Validates the options in context with arguments
@@ -24,6 +25,10 @@ func (io *getOptions) Validate() error {
 	errs := []error{}
 	if io.AppUrl == "" {
 		errs = append(errs, errors.New("app url not set"))
+	}
+
+	if io.Timeout == 0 {
+		errs = append(errs, errors.New("timeout must be larger than zero"))
 	}
 
 	return errors.Join(errs...)
@@ -46,6 +51,10 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 
 	cmd.PersistentFlags().StringVar(
 		&io.PolicyRepo, "policy-repo", "", "alternative repository to use as policy source",
+	)
+
+	cmd.PersistentFlags().IntVar(
+		&io.Timeout, "timeout", 900, "timeout (in seconds) to timeout downloads",
 	)
 }
 
@@ -84,7 +93,6 @@ func addGet(parentCmd *cobra.Command) {
 			if asset.Host == "" {
 				asset.Host = "github.com"
 			}
-
 			// Create the new dropper instance
 			dropper, err := drop.New(
 				drop.WithPolicyRepository(opts.PolicyRepo),
@@ -97,6 +105,7 @@ func addGet(parentCmd *cobra.Command) {
 			if err := dropper.Get(
 				asset,
 				drop.WithDownloadPath("."),
+				drop.WithTransferTimeOut(opts.Timeout),
 				drop.WithPlatform(opts.Platform),
 			); err != nil {
 				return fmt.Errorf("error downloading: %w", err)

@@ -5,6 +5,7 @@ package drop
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"strings"
 
@@ -15,9 +16,10 @@ import (
 var defaultOptions = Options{}
 
 var defaultGetOptions = GetOptions{
-	DownloadPath: ".",
-	OS:           runtime.GOOS,
-	Arch:         runtime.GOARCH,
+	DownloadPath:    ".",
+	OS:              runtime.GOOS,
+	Arch:            runtime.GOARCH,
+	TransferTimeOut: 900,
 }
 
 type Options struct {
@@ -31,6 +33,10 @@ type GetOptions struct {
 	Arch         string
 	// Filename to store the downloaded asset
 	FileName string
+
+	// TransferTimeOut is the number of seconds after which the http request
+	// will time out.
+	TransferTimeOut int
 }
 
 type FuncOption func(*Dropper) error
@@ -68,6 +74,16 @@ func WithPlatform(slug string) FuncGetOption {
 func WithDownloadPath(path string) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.DownloadPath = path
+		return nil
+	}
+}
+
+func WithTransferTimeOut(seconds int) FuncGetOption {
+	return func(o *GetOptions) error {
+		if seconds == 0 {
+			return fmt.Errorf("transfer timeout seconds cannot be zer")
+		}
+		o.TransferTimeOut = seconds
 		return nil
 	}
 }

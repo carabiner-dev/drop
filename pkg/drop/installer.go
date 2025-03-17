@@ -111,7 +111,7 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider) error {
 	}
 
 	// Downlad the asset to install
-	downloadPath, err := dropper.impl.DownloadAssetToTmp(&dropper.Options, asset)
+	downloadPath, err := dropper.impl.DownloadAssetToTmp(&opts, asset)
 	if err != nil {
 		return fmt.Errorf("downloading asset: %w", err)
 	}
