@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
 )
 
@@ -38,7 +39,11 @@ type FuncGetOption func(*GetOptions) error
 // Constructor funcs
 func WithPolicyRepository(repoURL string) FuncOption {
 	return func(d *Dropper) error {
-		d.Options.PolicyRepository = repoURL
+		str, err := github.RepoURLFromString(repoURL)
+		if err != nil {
+			return err
+		}
+		d.Options.PolicyRepository = str
 		return nil
 	}
 }
