@@ -174,3 +174,27 @@ type Info struct {
 	Os   string
 	Arch string
 }
+
+// GetArch returns the "official" (according to this library) arch label
+// from a string. If it does not match one of the known aliases it returns an
+// empty string
+func GetArch(label string) string {
+	for arch, aliases := range ArchAliases {
+		if slices.Contains(aliases, label) {
+			return arch
+		}
+	}
+	return ""
+}
+
+// GetOS returns the "official" (according to this library) Os label
+// from a string. If it does not match one of the known aliases it returns an
+// empty string
+func GetOS(label string) string {
+	for os, aliases := range OSAliases {
+		if slices.Contains(aliases, label) {
+			return os
+		}
+	}
+	return ""
+}
