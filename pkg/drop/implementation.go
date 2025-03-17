@@ -207,6 +207,12 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 	if opts.FileName != "" {
 		filename = opts.FileName
 	}
+
+	// FIXME(puerco): This should no be done when getting packages or
+	// archives:
+	if opts.OS == system.OSWindows {
+		filename = filename + ".exe"
+	}
 	path := filepath.Join(opts.DownloadPath, filename)
 	if util.Exists(path) {
 		return fmt.Errorf("file %q already exists, will not overwrite", path)
