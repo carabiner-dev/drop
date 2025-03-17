@@ -3,17 +3,63 @@
 
 package drop
 
+import (
+	"errors"
+	"runtime"
+	"strings"
+
+	"github.com/carabiner-dev/drop/pkg/system"
+)
+
 var defaultOptions = Options{}
+
+var defaultGetOptions = GetOptions{
+	DownloadPath: ".",
+	OS:           runtime.GOOS,
+	Arch:         runtime.GOARCH,
+}
 
 type Options struct {
 	PolicyRepository string
 }
 
-type FuncOption func(*Dropper) error
+type GetOptions struct {
+	Options
+	DownloadPath string
+	OS           string
+	Arch         string
+}
 
+type FuncOption func(*Dropper) error
+type FuncGetOption func(*GetOptions) error
+
+// Constructor funcs
 func WithPolicyRepository(repoURL string) FuncOption {
 	return func(d *Dropper) error {
 		d.Options.PolicyRepository = repoURL
+		return nil
+	}
+}
+
+// GetOptions
+func WithPlatform(slug string) FuncGetOption {
+	return func(o *GetOptions) error {
+		os, arch, _ := strings.Cut(slug, "/")
+		if _, ok := system.OSAliases[os]; !ok {
+			return errors.New("invalid OS in platform slug")
+		}
+		if _, ok := system.ArchAliases[os]; !ok {
+			return errors.New("invalid arch in platform slug")
+		}
+		o.OS = os
+		o.Arch = arch
+		return nil
+	}
+}
+
+func WithDownloadPath(path string) FuncGetOption {
+	return func(o *GetOptions) error {
+		o.DownloadPath = path
 		return nil
 	}
 }

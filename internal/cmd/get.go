@@ -92,7 +92,7 @@ func addGet(parentCmd *cobra.Command) {
 				return fmt.Errorf("cerating dropper: %w", err)
 			}
 
-			if err := dropper.Get(asset, "."); err != nil {
+			if err := dropper.Get(asset, drop.WithDownloadPath(".")); err != nil {
 				return fmt.Errorf("error downloading: %w", err)
 			}
 			return nil

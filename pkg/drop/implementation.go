@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"sigs.k8s.io/release-utils/http"
@@ -30,7 +31,7 @@ type installerImplementation interface {
 
 	// Choose asset takes an asset specifier and chooses the proper file to download
 	// and install in the system.
-	ChooseAsset(*Options, github.AssetDataProvider, *system.Info) (github.AssetDataProvider, error)
+	ChooseAsset(*GetOptions, *github.Client, github.AssetDataProvider) (github.AssetDataProvider, error)
 
 	// Fetch policies uses a provider to look for policies in a structured data source.
 	FetchPolicies(*Options, github.AssetDataProvider) ([]*ampel.PolicySet, error)
@@ -42,7 +43,7 @@ type installerImplementation interface {
 	DownloadAssetToWriter(*Options, io.Writer, github.AssetDataProvider) error
 
 	// DownloadAssetToWriter gets an asset from a release to an already opened file
-	DownloadAssetToFile(*Options, string, github.AssetDataProvider) error
+	DownloadAssetToFile(*GetOptions, github.AssetDataProvider) error
 
 	// VerifyAsset verifies that a file complioes with a set of policies
 	VerifyAsset(*Options, []*ampel.PolicySet, github.AssetDataProvider, string) (bool, error)
@@ -57,8 +58,28 @@ type defaultImplementation struct{}
 func (di *defaultImplementation) GetSystemInfo(*Options) (*system.Info, error) {
 	return system.GetInfo()
 }
-func (di *defaultImplementation) ChooseAsset(*Options, github.AssetDataProvider, *system.Info) (github.AssetDataProvider, error) {
-	return nil, nil
+
+// ChooseAsset selects an installable matching the spec name and local platform
+func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Client, spec github.AssetDataProvider) (github.AssetDataProvider, error) {
+	assets, err := client.ListReleaseInstallables(spec)
+	if err != nil {
+		return nil, fmt.Errorf("fetching release assets: %w", err)
+	}
+
+	// We look a for an installable with the same name as the repo
+	for _, asset := range assets {
+		if asset.GetName() == spec.GetRepo() {
+			// Found. Now check if it has variants for the local OS
+			if installable, ok := asset.(*github.Installable); ok {
+				for _, variant := range installable.Variants {
+					if variant.Os == opts.OS && variant.Arch == opts.Arch {
+						return variant, nil
+					}
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("no asset found for %s", spec.GetRepo())
 }
 
 func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*ampel.PolicySet, error) {
@@ -140,7 +161,7 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 }
 
 // DownloadAssetToTmp fetches the asset to a temporary location
-func (di *defaultImplementation) DownloadAssetToTmp(opts *Options, asset github.AssetDataProvider) (string, error) {
+func (di *defaultImplementation) DownloadAssetToTmp(_ *Options, asset github.AssetDataProvider) (string, error) {
 	tmpfile, err := os.CreateTemp("", "drop-download-")
 	if err != nil {
 		return "", fmt.Errorf("creating temporary file: %w", err)
@@ -148,7 +169,7 @@ func (di *defaultImplementation) DownloadAssetToTmp(opts *Options, asset github.
 	defer tmpfile.Close()
 
 	// Get the data
-	if err := di.DownloadAssetToWriter(opts, tmpfile, asset); err != nil {
+	if err := di.DownloadAssetToWriter(nil, tmpfile, asset); err != nil {
 		return "", err
 	}
 	return tmpfile.Name(), nil
@@ -161,7 +182,7 @@ func (di *defaultImplementation) InstallAsset(*Options, *system.Info, string) er
 }
 
 // DownloadAssetToWriter downloads the asset data to the supplied writer
-func (di *defaultImplementation) DownloadAssetToWriter(opts *Options, w io.Writer, asset github.AssetDataProvider) error {
+func (di *defaultImplementation) DownloadAssetToWriter(_ *Options, w io.Writer, asset github.AssetDataProvider) error {
 	if asset.GetDownloadURL() == "" {
 		return fmt.Errorf("asset has nor download URL defined")
 	}
@@ -172,11 +193,13 @@ func (di *defaultImplementation) DownloadAssetToWriter(opts *Options, w io.Write
 	return nil
 }
 
-func (di *defaultImplementation) DownloadAssetToFile(opts *Options, path string, asset github.AssetDataProvider) error {
+func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset github.AssetDataProvider) error {
+	// FIXME(puerco): This is not right
+	path := filepath.Join(opts.DownloadPath, asset.GetName())
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("downloading file: %w", err)
 	}
 
-	return di.DownloadAssetToWriter(opts, f, asset)
+	return di.DownloadAssetToWriter(nil, f, asset)
 }

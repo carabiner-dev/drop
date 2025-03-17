@@ -45,7 +45,21 @@ func New(funcs ...FuncOption) (*Dropper, error) {
 	return d, nil
 }
 
-func (dropper *Dropper) Get(asset github.AssetDataProvider, downloadPath string) error {
+func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOption) error {
+	opts := defaultGetOptions
+	opts.Options = dropper.Options
+
+	for _, fn := range funcs {
+		if err := fn(&opts); err != nil {
+			return err
+		}
+	}
+
+	asset, err := dropper.impl.ChooseAsset(&opts, dropper.client, spec)
+	if err != nil {
+		return fmt.Errorf("unable to locate a suitable asset: %w", err)
+	}
+
 	// Look for the asset polcies
 	policies, err := dropper.impl.FetchPolicies(&dropper.Options, asset)
 	if err != nil {
@@ -56,12 +70,12 @@ func (dropper *Dropper) Get(asset github.AssetDataProvider, downloadPath string)
 		return ErrNoPolicyAvailable
 	}
 
-	if err := dropper.impl.DownloadAssetToFile(&dropper.Options, downloadPath, asset); err != nil {
+	if err := dropper.impl.DownloadAssetToFile(&opts, asset); err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}
 
 	// Verify the asset data
-	ok, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
+	ok, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, "downloadPath")
 	if err != nil {
 		return fmt.Errorf("error verifying asset: %w", err)
 	}
@@ -76,12 +90,15 @@ func (dropper *Dropper) Get(asset github.AssetDataProvider, downloadPath string)
 
 // Install downloads, verifies and installs an artifact from a release
 func (dropper *Dropper) Install(spec github.AssetDataProvider) error {
+	opts := defaultGetOptions
+	opts.Options = dropper.Options
+
 	sysinfo, err := dropper.impl.GetSystemInfo(&dropper.Options)
 	if err != nil {
 		return fmt.Errorf("reading system information: %w", err)
 	}
 
-	asset, err := dropper.impl.ChooseAsset(&dropper.Options, spec, sysinfo)
+	asset, err := dropper.impl.ChooseAsset(&opts, dropper.client, spec)
 	if err != nil {
 		return fmt.Errorf("unable to locate a suitable asset: %w", err)
 	}
