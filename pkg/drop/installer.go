@@ -72,7 +72,7 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 	}
 
 	if err := dropper.impl.DownloadAssetToFile(&opts, asset); err != nil {
-		return fmt.Errorf("opening file: %w", err)
+		return fmt.Errorf("downloading file: %w", err)
 	}
 
 	// Verify the asset data

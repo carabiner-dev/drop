@@ -28,6 +28,8 @@ type GetOptions struct {
 	DownloadPath string
 	OS           string
 	Arch         string
+	// Filename to store the downloaded asset
+	FileName string
 }
 
 type FuncOption func(*Dropper) error

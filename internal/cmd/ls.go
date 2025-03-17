@@ -151,8 +151,7 @@ see a list of the available releases, use the -r|--releases switch:
 				return err
 			}
 
-			var out io.Writer
-			out = os.Stdout
+			var out io.Writer = os.Stdout
 
 			// If the URL has a version, then we list a release
 			if opts.ListReleases {

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"sigs.k8s.io/release-utils/http"
+	"sigs.k8s.io/release-utils/util"
 
 	ampel "github.com/carabiner-dev/ampel/pkg/api/v1"
 	"github.com/carabiner-dev/ampel/pkg/attestation"
@@ -78,6 +79,7 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 			if installable, ok := asset.(*github.Installable); ok {
 				for _, variant := range installable.Variants {
 					if variant.Os == opts.OS && variant.Arch == opts.Arch {
+						opts.FileName = installable.GetName()
 						return variant, nil
 					}
 				}
@@ -201,8 +203,14 @@ func (di *defaultImplementation) DownloadAssetToWriter(_ *Options, w io.Writer, 
 }
 
 func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset github.AssetDataProvider) error {
-	// FIXME(puerco): This is not right
-	path := filepath.Join(opts.DownloadPath, asset.GetName())
+	filename := asset.GetName()
+	if opts.FileName != "" {
+		filename = opts.FileName
+	}
+	path := filepath.Join(opts.DownloadPath, filename)
+	if util.Exists(path) {
+		return fmt.Errorf("file %q already exists, will not overwrite", path)
+	}
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("downloading file: %w", err)

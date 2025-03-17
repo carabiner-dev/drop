@@ -13,9 +13,10 @@ import (
 	"sigs.k8s.io/release-utils/version"
 )
 
-const appname = "drop"
-
-const arr = `↘`
+const (
+	appname = "drop"
+	arr     = `↘`
+)
 
 var w = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
 var w2 = color.New(color.Faint, color.FgWhite, color.BgBlack).SprintFunc()
