@@ -28,6 +28,12 @@ github.com/bradleyjkemp/cupaloy/v2 v2.8.0 h1:any4BmKE+jGIaMpnU8YgH/I2LPiLBufr6oM
 github.com/bradleyjkemp/cupaloy/v2 v2.8.0/go.mod h1:bm7JXdkRd4BHJk9HpwqAI8BoAY1lps46Enkdqw6aRX0=
 github.com/carabiner-dev/ampel v0.0.0-20250316234700-9be3a97835a2 h1:Jse5BsREWi2S0osxzLbeGQgCww4yGZBhgOW7CiyjHoM=
 github.com/carabiner-dev/ampel v0.0.0-20250316234700-9be3a97835a2/go.mod h1:RVUlafzaRlepzbP9LD3VM1MTjkLoH6xa+0vD4VcYc1g=
+github.com/carabiner-dev/ampel v0.0.0-20250317051020-e09ea64bf231 h1:bT8VjrKTFZXHSCSlHkc/c8/aXkp8qSbxo3UyECs/1Io=
+github.com/carabiner-dev/ampel v0.0.0-20250317051020-e09ea64bf231/go.mod h1:RVUlafzaRlepzbP9LD3VM1MTjkLoH6xa+0vD4VcYc1g=
+github.com/carabiner-dev/ampel v0.0.0-20250317051246-415216fc5ed4 h1:7wE5qBB5bOWRZ5BODefZJJ4W4nQSHIW6sK843wj5mVg=
+github.com/carabiner-dev/ampel v0.0.0-20250317051246-415216fc5ed4/go.mod h1:RVUlafzaRlepzbP9LD3VM1MTjkLoH6xa+0vD4VcYc1g=
+github.com/carabiner-dev/ampel v0.0.0-20250317053747-98f528b32291 h1:sB8MszcvStvoI75XBJlIcB0IgoLSboGMUCxagE5VMKM=
+github.com/carabiner-dev/ampel v0.0.0-20250317053747-98f528b32291/go.mod h1:RVUlafzaRlepzbP9LD3VM1MTjkLoH6xa+0vD4VcYc1g=
 github.com/carabiner-dev/github v0.1.1 h1:4CQeXqnKoK00c8kGU1oyUuixx8zYqhVXAWX/9oIRyoo=
 github.com/carabiner-dev/github v0.1.1/go.mod h1:+aE7mBcpsjiupba9wljgXQmDlt56ed1ACQWlHQcwmpw=
 github.com/carabiner-dev/osv v0.0.0-20250124012120-b8ce4531cd92 h1:BJ9+OCNezZGkU8SrGC3oB7Tj+J0JsonwfZztcgUav6c=

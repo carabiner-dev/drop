@@ -3,7 +3,7 @@ module github.com/carabiner-dev/drop
 go 1.24.1
 
 require (
-	github.com/carabiner-dev/ampel v0.0.0-20250316234700-9be3a97835a2
+	github.com/carabiner-dev/ampel v0.0.0-20250317053747-98f528b32291
 	github.com/go-git/go-git/v5 v5.14.0
 	github.com/google/go-github/v60 v60.0.0
 	github.com/rodaine/table v1.3.0

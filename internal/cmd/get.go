@@ -14,8 +14,9 @@ import (
 )
 
 type getOptions struct {
-	AppUrl   string
-	Platform string
+	AppUrl     string
+	Platform   string
+	PolicyRepo string
 }
 
 // Validates the options in context with arguments
@@ -41,6 +42,10 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 
 	cmd.PersistentFlags().StringVarP(
 		&io.Platform, "platform", "p", platform, "platform slug to download and verify",
+	)
+
+	cmd.PersistentFlags().StringVar(
+		&io.PolicyRepo, "policy-repo", "", "alternative repository to use as policy source",
 	)
 }
 
@@ -76,7 +81,13 @@ func addGet(parentCmd *cobra.Command) {
 				return fmt.Errorf("unable to parse app URL: %q", opts.AppUrl)
 			}
 
-			dropper, err := drop.New()
+			if asset.Host == "" {
+				asset.Host = "github.com"
+			}
+
+			dropper, err := drop.New(
+				drop.WithPolicyRepository(opts.PolicyRepo),
+			)
 			if err != nil {
 				return fmt.Errorf("cerating dropper: %w", err)
 			}

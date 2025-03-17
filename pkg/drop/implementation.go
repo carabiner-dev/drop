@@ -17,7 +17,6 @@ import (
 	"github.com/carabiner-dev/ampel/pkg/collector"
 	"github.com/carabiner-dev/ampel/pkg/policy"
 	gitcollector "github.com/carabiner-dev/ampel/pkg/repository/git"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/sirupsen/logrus"
 
 	"github.com/carabiner-dev/drop/pkg/github"
@@ -64,20 +63,22 @@ func (di *defaultImplementation) ChooseAsset(*Options, github.AssetDataProvider,
 
 func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*ampel.PolicySet, error) {
 	repoBaseUrl := fmt.Sprintf(
-		"git+https://%s/%s/%s", asset.GetHost(), asset.GetOrg(), defaultPolicyRepo,
+		"https://%s/%s/%s", asset.GetHost(), asset.GetOrg(), defaultPolicyRepo,
 	)
 	if opts.PolicyRepository != "" {
 		repoBaseUrl = opts.PolicyRepository
 	}
 
+	locator := fmt.Sprintf(
+		"%s#policy/%s/%s/%s", repoBaseUrl,
+		asset.GetHost(), asset.GetOrg(), asset.GetRepo(),
+	)
+
+	logrus.Debugf("Fetching policies from %s", locator)
+
 	// Create the git repository for the collector agent
 	arepo, err := gitcollector.New(
-		gitcollector.WithLocator(
-			fmt.Sprintf(
-				"%s#policy/%s/%s/%s", repoBaseUrl,
-				asset.GetHost(), asset.GetOrg(), asset.GetRepo(),
-			),
-		),
+		gitcollector.WithLocator(locator),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating git collector: %w", err)
@@ -92,14 +93,14 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 
 	// Now, fetch all policy attestations
 	attestations, err := agent.FetchAttestationsByPredicateType(
-		context.Background(), []attestation.PredicateType{"https://carabiner.dev/ampel/results/v0.0.1"},
+		context.Background(), []attestation.PredicateType{"https://carabiner.dev/ampel/policyset/v0.0.1"},
 	)
 	// If there were errors fetching attestations, there are two special
 	// cases we want to handle as non-errors:
 	if err != nil {
 		// 1. The org has no ampel repository.
 		// This error also returns if the requires auth
-		if strings.Contains(err.Error(), transport.ErrRepositoryNotFound.Error()) {
+		if strings.Contains(err.Error(), "Repository not found") {
 			logrus.Debugf("policy repository does not exist")
 			return []*ampel.PolicySet{}, nil
 		}
