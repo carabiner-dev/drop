@@ -45,6 +45,10 @@ type FuncGetOption func(*GetOptions) error
 // Constructor funcs
 func WithPolicyRepository(repoURL string) FuncOption {
 	return func(d *Dropper) error {
+		if repoURL == "" {
+			d.Options.PolicyRepository = ""
+			return nil
+		}
 		str, err := github.RepoURLFromString(repoURL)
 		if err != nil {
 			return err
