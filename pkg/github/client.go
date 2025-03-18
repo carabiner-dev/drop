@@ -49,6 +49,9 @@ type Client struct {
 
 // RepoURLFromString
 func RepoURLFromString(str string) (string, error) {
+	if str == "" {
+		return "", fmt.Errorf("repo string empty")
+	}
 	// String is a github URL without scheme
 	if strings.HasPrefix(str, "github.com") {
 		str = "https://" + str
