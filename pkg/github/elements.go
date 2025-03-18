@@ -3,7 +3,10 @@
 
 package github
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type ReleaseDataProvider interface {
 	RepoDataProvider
@@ -16,6 +19,7 @@ type RepoDataProvider interface {
 	GetHost() string
 	GetRepo() string
 	GetOrg() string
+	GetRepoURL() string
 }
 
 type AssetDataProvider interface {
@@ -28,4 +32,8 @@ type AssetDataProvider interface {
 	GetUpdatedAt() time.Time
 	GetDownloadURL() string
 	GetLabel() string
+}
+
+func buildRepositoryURL(provider RepoDataProvider) string {
+	return fmt.Sprintf("https://%s/%s/%s", provider.GetHost(), provider.GetOrg(), provider.GetRepo())
 }

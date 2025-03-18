@@ -92,3 +92,7 @@ func (a *Asset) GetDownloadURL() string {
 func (a *Asset) GetLabel() string {
 	return a.Label
 }
+
+func (a *Asset) GetRepoURL() string {
+	return buildRepositoryURL(a)
+}

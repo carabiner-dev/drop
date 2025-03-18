@@ -338,3 +338,7 @@ func (i *Installable) GetDownloadURL() string {
 func (i *Installable) GetLabel() string {
 	return i.Label
 }
+
+func (i *Installable) GetRepoURL() string {
+	return buildRepositoryURL(i)
+}

@@ -59,3 +59,7 @@ func (r *Release) GetCreatedAt() time.Time {
 func (r *Release) GetAuthor() string {
 	return r.Author
 }
+
+func (r *Release) GetRepoURL() string {
+	return buildRepositoryURL(r)
+}

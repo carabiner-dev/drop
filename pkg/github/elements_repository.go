@@ -20,3 +20,7 @@ func (r *Repository) GetRepo() string {
 func (r *Repository) GetOrg() string {
 	return r.Org
 }
+
+func (r *Repository) GetRepoURL() string {
+	return buildRepositoryURL(r)
+}
