@@ -19,6 +19,7 @@ type getOptions struct {
 	Platform   string
 	PolicyRepo string
 	Timeout    int
+	Quiet      bool
 }
 
 // Validates the options in context with arguments
@@ -56,6 +57,10 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 
 	cmd.PersistentFlags().IntVar(
 		&io.Timeout, "timeout", 900, "timeout (in seconds) to timeout downloads",
+	)
+
+	cmd.PersistentFlags().BoolVarP(
+		&io.Quiet, "quiet", "q", false, "less verbose output (for scripts, etc)",
 	)
 }
 
@@ -144,10 +149,17 @@ of %s policies to secure their releases ✨
 			if asset.Host == "" {
 				asset.Host = "github.com"
 			}
+
+			// Set the CLI notifier as the notifier, unless -q was specified
+			var lstnr drop.ProgressListener = &notifier.Listener{}
+			if opts.Quiet {
+				lstnr = &drop.NoopListener{}
+			}
+
 			// Create the new dropper instance
 			dropper, err := drop.New(
 				drop.WithPolicyRepository(opts.PolicyRepo),
-				drop.WithListener(&notifier.Listener{}),
+				drop.WithListener(lstnr),
 			)
 			if err != nil {
 				return fmt.Errorf("cerating dropper: %w", err)

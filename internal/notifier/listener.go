@@ -27,7 +27,7 @@ func (l *Listener) HandleEvent(event *drop.Event) error {
 			if s := event.GetDataField("repo"); s != "" {
 				repo = fmt.Sprintf(" (source: %s)", s)
 			}
-			fmt.Printf("  💫 %s%s\n", w("looking for policies"), repo)
+			fmt.Printf("  💫 %s%s\n", w("Looking for policies"), repo)
 			return nil
 		case drop.EventVerbDone:
 			sets := "0"
@@ -51,7 +51,7 @@ func (l *Listener) HandleEvent(event *drop.Event) error {
 					size = fmt.Sprintf(" (%.2f MB)", float64(i)/1024/1024)
 				}
 			}
-			fmt.Printf("  ⏬ %s%s\n", w(fmt.Sprintf("downloading %s", f)), size)
+			fmt.Printf("  ⏬ %s%s\n", w(fmt.Sprintf("Downloading %s", f)), size)
 		case drop.EventVerbDone:
 			fmt.Println("      ✔️  done")
 		case drop.EventVerbSaved:
@@ -59,12 +59,12 @@ func (l *Listener) HandleEvent(event *drop.Event) error {
 			if s := event.GetDataField("path"); s != "" {
 				p = fmt.Sprintf(" (written to %s)", s)
 			}
-			fmt.Printf("  💾 %s%s\n", w("Download complete"), p)
+			fmt.Printf("  💾 %s%s\n", w("Download complete!"), p)
 		}
 	case drop.EventObjectVerification:
 		switch event.Verb {
 		case drop.EventVerbRunning:
-			fmt.Printf("  🛡️  %s\n", w("verifying artifact..."))
+			fmt.Printf("  🛡️  %s\n", w("Verifying artifact..."))
 		case drop.EventVerbDone:
 			if s := event.GetDataField("passed"); s != "" {
 				if s == "true" {
