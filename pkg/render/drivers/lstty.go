@@ -56,9 +56,10 @@ func columnTable(w io.Writer, numCols int, data []string) {
 
 func permString(item github.AssetDataProvider) string {
 	str := []rune("T➖➖➖➖➖➖➖")
-	if inst, ok := item.(*github.Installable); ok {
+	switch artifact := item.(type) {
+	case *github.Installable:
 		str[0] = '💾'
-		oss := inst.GetOsVariants()
+		oss := artifact.GetOsVariants()
 		if slices.Contains(oss, system.OSLinux) {
 			str[1] = '🐧'
 		}
@@ -68,25 +69,25 @@ func permString(item github.AssetDataProvider) string {
 		if slices.Contains(oss, system.OSWindows) {
 			str[3] = '🪟'
 		}
-		if len(inst.GetPackageTypes()) > 0 {
+		if len(artifact.GetPackageTypes()) > 0 {
 			str[4] = '📦'
 		}
-		if len(inst.GetArchiveTypes()) > 0 {
+		if len(artifact.GetArchiveTypes()) > 0 {
 			str[5] = '🎁'
 		}
-	} else if asst, ok := item.(*github.Asset); ok {
+	case *github.Asset:
 		str[0] = '📄'
-		if asst.Os == system.OSLinux {
+		if artifact.Os == system.OSLinux {
 			str[1] = '🐧'
 		} else {
 			str[1] = '➖'
 		}
-		if asst.Os == system.OSDarwin {
+		if artifact.Os == system.OSDarwin {
 			str[2] = '🍏'
 		} else {
 			str[2] = '➖'
 		}
-		if asst.Os == system.OSWindows {
+		if artifact.Os == system.OSWindows {
 			str[3] = '🪟'
 		} else {
 			str[3] = '➖'

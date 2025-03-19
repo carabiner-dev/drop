@@ -6,15 +6,18 @@ package drop
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 )
 
 const defaultPolicyRepo = ".ampel"
 
-var ErrNoPolicyAvailable = errors.New("no verification policies available for artifact")
-var ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
-var ErrNoPlatformVariant = errors.New("no installable variant found for the specified platform")
+var (
+	ErrNoPolicyAvailable  = errors.New("no verification policies available for artifact")
+	ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
+	ErrNoPlatformVariant  = errors.New("no installable variant found for the specified platform")
+)
 
 type Dropper struct {
 	Options Options
@@ -46,6 +49,7 @@ func New(funcs ...FuncOption) (*Dropper, error) {
 	return d, nil
 }
 
+// Get downloads and verifies an artifact from a GitHub release.
 func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOption) error {
 	opts := defaultGetOptions
 	opts.Options = dropper.Options
@@ -79,11 +83,13 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 	// Verify the asset data
 	ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
 	if err != nil {
+		_ = os.Remove(downloadPath)
 		return fmt.Errorf("error verifying asset: %w", err)
 	}
 
 	// If verification failed, we're done
 	if !ok {
+		_ = os.Remove(downloadPath)
 		return ErrVerificationFailed
 	}
 

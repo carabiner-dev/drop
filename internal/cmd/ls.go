@@ -46,6 +46,7 @@ func (lo *lsOptions) AddFlags(cmd *cobra.Command) {
 		&lo.ListReleases, "releases", "r", false, "list releases in the repo instead of artifacts",
 	)
 }
+
 func addLs(parentCmd *cobra.Command) {
 	opts := &lsOptions{}
 	lsCmd := &cobra.Command{

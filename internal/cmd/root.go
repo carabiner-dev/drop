@@ -18,8 +18,10 @@ const (
 	arr     = `↘`
 )
 
-var w = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
-var w2 = color.New(color.Faint, color.FgWhite, color.BgBlack).SprintFunc()
+var (
+	w  = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
+	w2 = color.New(color.Faint, color.FgWhite, color.BgBlack).SprintFunc()
+)
 
 func AmpelBanner(legend string) string {
 	r := color.New(color.FgRed, color.BgBlack).SprintFunc()
@@ -50,7 +52,7 @@ focused on security. Drop uses the %s policy engine to verify the
 integrity of the binaries and packages you download, as well as their supply
 chain metadata. 
 
-`, DropBanner("securely install software from GitHub)"), appname, AmpelBanner("")),
+`, DropBanner("securely install software from GitHub"), appname, AmpelBanner("")),
 	Short:             fmt.Sprintf("%s: securely install software from GitHub", appname),
 	Use:               appname,
 	SilenceUsage:      false,
@@ -60,27 +62,37 @@ drop is a utility to install, update and download software from GitHub with
 focused on security. Drop uses the AMPEL policy engine to verify the integrity
 of the binaries and packages you download and well as their supply chain. 
 
+%s
+
 List assets in a release:
 
-	%s ls -l github.com/org/repo
+  %s ls -l github.com/org/repo
+
+List assets withour grouping into "installables":
+
+  %s ls -l --all github.com/org/repo
+
+%s
 
 Download and verify artifacts from a GitHub release:
 
-	%s ls get github.com/org/repo@latest
+  %s get github.com/org/repo@latest
 
 Download and verify a specific file from a release:
 
-	%s ls get github.com/org/repo#checksums.txt
+  %s get github.com/org/repo#checksums.txt
+
+%s
 
 Install a binary from a release:
 
-	%s ls install github.com/org/repo
+  %s install github.com/org/repo
 
 Install the same, but using a system package:
 
-	%s ls install --package github.com/org/repo
+  %s install --package github.com/org/repo
 
-	`, appname, appname, appname, appname, appname),
+	`, w2("LISTING ASSETS"), appname, appname, w2("DOWNLOAD"), appname, appname, w2("INSTALLING"), appname, appname),
 }
 
 type commandLineOptions struct {

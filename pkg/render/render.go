@@ -48,9 +48,11 @@ type Driver interface {
 func (e *Engine) RenderReleaseInstallables(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
 	return e.driver.RenderReleaseInstallables(w, release, assets)
 }
+
 func (e *Engine) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
 	return e.driver.RenderReleaseAssets(w, release, assets)
 }
+
 func (e *Engine) RenderRepoReleases(w io.Writer, repo github.RepoDataProvider, releases []github.ReleaseDataProvider) error {
 	return e.driver.RenderRepoReleases(w, repo, releases)
 }

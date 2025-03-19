@@ -65,7 +65,7 @@ const (
 )
 
 func MainSplitPattern() string {
-	var all = []string{}
+	all := []string{}
 	for _, c := range ArchAliases {
 		all = append(all, c...)
 	}
@@ -85,7 +85,6 @@ func MainSplitPattern() string {
 		})
 
 	return "(?i)(" + strings.Join(all, "|") + ")"
-
 }
 
 type LabelList []string
@@ -167,8 +166,10 @@ const (
 	ArchiveTgz = "tgz"
 )
 
-var PackageTypes = []string{PackageRPM, PackageDeb, PackageApk, PackageDmg, PackageMSI}
-var ArchiveTypes = []string{ArchiveZip, ArchiveTar, ArchiveBz, ArchiveBz2, ArchiveGz, ArchiveXz, ArchiveRar, ArchiveL7, ArchiveTgz}
+var (
+	PackageTypes = []string{PackageRPM, PackageDeb, PackageApk, PackageDmg, PackageMSI}
+	ArchiveTypes = []string{ArchiveZip, ArchiveTar, ArchiveBz, ArchiveBz2, ArchiveGz, ArchiveXz, ArchiveRar, ArchiveL7, ArchiveTgz}
+)
 
 type Info struct {
 	Os   string

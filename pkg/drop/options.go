@@ -39,8 +39,10 @@ type GetOptions struct {
 	TransferTimeOut int
 }
 
-type FuncOption func(*Dropper) error
-type FuncGetOption func(*GetOptions) error
+type (
+	FuncOption    func(*Dropper) error
+	FuncGetOption func(*GetOptions) error
+)
 
 // Constructor funcs
 func WithPolicyRepository(repoURL string) FuncOption {

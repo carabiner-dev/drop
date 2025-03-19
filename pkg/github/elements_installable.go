@@ -145,13 +145,14 @@ func assetListToInstallableList(assets []AssetDataProvider) []AssetDataProvider 
 		// If the name has the version appended, trim it. This normalizes
 		// repos that append the version to the binary names
 		if asset.GetVersion() != "" {
-			if strings.HasSuffix(name, asset.GetVersion()) {
+			switch {
+			case strings.HasSuffix(name, asset.GetVersion()):
 				name = trimSeparatorSuffix(strings.TrimSuffix(name, asset.GetVersion()))
 				// ... handle if the version has a v before (but the nombre does not)
-			} else if strings.HasPrefix(asset.GetVersion(), "v") && strings.HasSuffix(name, asset.GetVersion()[1:]) {
+			case strings.HasPrefix(asset.GetVersion(), "v") && strings.HasSuffix(name, asset.GetVersion()[1:]):
 				name = trimSeparatorSuffix(strings.TrimSuffix(name, asset.GetVersion()[1:]))
 				// ... also check if it's an RPM and has a relase attached
-			} else if strings.HasPrefix(parts[len(parts)-1], ".rpm") && finalDigitRegex.MatchString(name) {
+			case strings.HasPrefix(parts[len(parts)-1], ".rpm") && finalDigitRegex.MatchString(name):
 				name = trimRpmRelease(name, asset.GetVersion())
 			}
 		}

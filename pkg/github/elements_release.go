@@ -11,8 +11,8 @@ import (
 
 func newReleaseFromGitHubRelease(repo RepoDataProvider, release *gogithub.RepositoryRelease) *Release {
 	return &Release{
-		Host:       repo.GetHost(), //  c.Options.Host,
-		Repo:       repo.GetRepo(), //rdata.GetRepo(), r.G
+		Host:       repo.GetHost(),
+		Repo:       repo.GetRepo(),
 		Org:        repo.GetOrg(),
 		Version:    release.GetTagName(),
 		ID:         release.GetID(),

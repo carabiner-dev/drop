@@ -33,7 +33,7 @@ func TestGetArchFromFilename(t *testing.T) {
 		system.ArchS390X, system.ArchS390X, system.ArchS390X, system.ArchS390X, system.ArchS390X,
 		system.ArchS390X, system.ArchX8664, system.ArchX8664, system.ArchX8664, "", "", "", "",
 	}
-	// expect := make([]string, len(fileSet2))
+
 	for i, filename := range fileSet2 {
 		t.Run(filename, func(t *testing.T) {
 			t.Parallel()
@@ -55,7 +55,7 @@ func TestGetOsFromFilename(t *testing.T) {
 		system.OSLinux, system.OSDarwin, system.OSLinux,
 		system.OSLinux, system.OSLinux, "",
 	}
-	// expect := make([]string, len(fileSet2))
+
 	for i, filename := range fileSet1 {
 		t.Run(filename, func(t *testing.T) {
 			t.Parallel()
@@ -96,6 +96,7 @@ var fileSet1 = []string{
 	"bom-arm-linux.pem", "bom-arm64-darwin.pem", "bom-arm64-linux.pem",
 	"bom-ppc64le-linux.pem", "bom-s390x-linux.pem", "bom.json.spdx.pem",
 }
+
 var fileSet2 = []string{
 	"cosign-2.4.3-1.aarch64.rpm", "cosign-2.4.3-1.aarch64.rpm-keyless.pem",
 	"cosign-2.4.3-1.aarch64.rpm-keyless.sig", "cosign-2.4.3-1.armv7hl.rpm",

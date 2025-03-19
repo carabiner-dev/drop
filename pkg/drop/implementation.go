@@ -150,8 +150,8 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 	}
 
 	// Parse the policies from the attested data
-	var ret = []*ampel.PolicySet{}
-	var parser = policy.NewParser()
+	ret := []*ampel.PolicySet{}
+	parser := policy.NewParser()
 	for _, att := range attestations {
 		// Since these attestations were already parsed, these two
 		// should never happen, but we still want to avoid panics:
@@ -187,6 +187,7 @@ func (di *defaultImplementation) DownloadAssetToTmp(opts *GetOptions, asset gith
 	}
 	return tmpfile.Name(), nil
 }
+
 func (di *defaultImplementation) VerifyAsset(
 	opts *Options, policies []*ampel.PolicySet, asset github.AssetDataProvider, filePath string,
 ) (bool, *ampel.ResultSet, error) {
@@ -258,10 +259,10 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 		filename = opts.FileName
 	}
 
-	// FIXME(puerco): This should no be done when getting packages or
+	// TODO(puerco): This should no be done when getting packages or
 	// archives:
 	if opts.OS == system.OSWindows {
-		filename = filename + ".exe"
+		filename += ".exe"
 	}
 	path := filepath.Join(opts.DownloadPath, filename)
 	if util.Exists(path) {
