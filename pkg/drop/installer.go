@@ -71,12 +71,13 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 		return ErrNoPolicyAvailable
 	}
 
-	if err := dropper.impl.DownloadAssetToFile(&opts, asset); err != nil {
+	downloadPath, err := dropper.impl.DownloadAssetToFile(&opts, asset)
+	if err != nil {
 		return fmt.Errorf("downloading file: %w", err)
 	}
 
 	// Verify the asset data
-	ok, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, "downloadPath")
+	ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
 	if err != nil {
 		return fmt.Errorf("error verifying asset: %w", err)
 	}
@@ -117,7 +118,7 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider) error {
 	}
 
 	// Verify the asset data
-	ok, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
+	ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
 	if err != nil {
 		return fmt.Errorf("error verifying asset: %w", err)
 	}

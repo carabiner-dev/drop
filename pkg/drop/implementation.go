@@ -20,6 +20,9 @@ import (
 	"github.com/carabiner-dev/ampel/pkg/collector"
 	"github.com/carabiner-dev/ampel/pkg/policy"
 	gitcollector "github.com/carabiner-dev/ampel/pkg/repository/git"
+	"github.com/carabiner-dev/ampel/pkg/repository/release"
+	"github.com/carabiner-dev/ampel/pkg/verifier"
+	"github.com/carabiner-dev/hasher"
 	"github.com/sirupsen/logrus"
 
 	"github.com/carabiner-dev/drop/pkg/github"
@@ -45,10 +48,10 @@ type installerImplementation interface {
 	DownloadAssetToWriter(*GetOptions, io.Writer, github.AssetDataProvider) error
 
 	// DownloadAssetToWriter gets an asset from a release to an already opened file
-	DownloadAssetToFile(*GetOptions, github.AssetDataProvider) error
+	DownloadAssetToFile(*GetOptions, github.AssetDataProvider) (string, error)
 
 	// VerifyAsset verifies that a file complioes with a set of policies
-	VerifyAsset(*Options, []*ampel.PolicySet, github.AssetDataProvider, string) (bool, error)
+	VerifyAsset(*Options, []*ampel.PolicySet, github.AssetDataProvider, string) (bool, *ampel.ResultSet, error)
 
 	// InstallAsset invokes the system mechanism to set up the downloaded artifact
 	// in the local machine.
@@ -184,9 +187,55 @@ func (di *defaultImplementation) DownloadAssetToTmp(opts *GetOptions, asset gith
 	}
 	return tmpfile.Name(), nil
 }
-func (di *defaultImplementation) VerifyAsset(*Options, []*ampel.PolicySet, github.AssetDataProvider, string) (bool, error) {
-	return false, nil
+func (di *defaultImplementation) VerifyAsset(
+	opts *Options, policies []*ampel.PolicySet, asset github.AssetDataProvider, filePath string,
+) (bool, *ampel.ResultSet, error) {
+	// Create a verifier, for now we will only support attestations
+	// published along the artifact (as GitHub assets):
+
+	// Create the collector
+	collector, err := release.New(
+		release.WithRepo(asset.GetRepoURL()),
+		release.WithTag(asset.GetVersion()),
+	)
+	if err != nil {
+		return false, nil, fmt.Errorf("unable to create release attestation collector")
+	}
+
+	// Create the new ampel verifier
+	vrfr, err := verifier.New(verifier.WithCollector(collector))
+	if err != nil {
+		return false, nil, fmt.Errorf("creating new AMPEL verifier: %w", err)
+	}
+
+	// Generate the subject resource descriptors from the file
+	res, err := hasher.New().HashFiles([]string{filePath})
+	if err != nil {
+		return false, nil, fmt.Errorf("hashing file: %w", err)
+	}
+	if len(*res) != 1 {
+		return false, nil, fmt.Errorf("expected one set of hashes from file, got %d", len(*res))
+	}
+
+	// Run the artifact verification
+	results, err := vrfr.Verify(
+		context.Background(), &verifier.DefaultVerificationOptions, policies, res.ToResourceDescriptors()[0],
+	)
+	if err != nil {
+		return false, nil, fmt.Errorf("error running artifact verification: %w", err)
+	}
+
+	// Compute the evaluation status
+	passed := true
+	for _, r := range results.Results {
+		if r.Status != ampel.StatusPASS {
+			passed = false
+		}
+	}
+
+	return passed, results, nil
 }
+
 func (di *defaultImplementation) InstallAsset(*Options, *system.Info, string) error {
 	return nil
 }
@@ -203,7 +252,7 @@ func (di *defaultImplementation) DownloadAssetToWriter(opts *GetOptions, w io.Wr
 	return nil
 }
 
-func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset github.AssetDataProvider) error {
+func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset github.AssetDataProvider) (string, error) {
 	filename := asset.GetName()
 	if opts.FileName != "" {
 		filename = opts.FileName
@@ -216,12 +265,15 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 	}
 	path := filepath.Join(opts.DownloadPath, filename)
 	if util.Exists(path) {
-		return fmt.Errorf("file %q already exists, will not overwrite", path)
+		return "", fmt.Errorf("file %q already exists, will not overwrite", path)
 	}
 	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("downloading file: %w", err)
+		return "", fmt.Errorf("downloading file: %w", err)
 	}
 	defer f.Close()
-	return di.DownloadAssetToWriter(opts, f, asset)
+	if err := di.DownloadAssetToWriter(opts, f, asset); err != nil {
+		return "", err
+	}
+	return path, nil
 }
