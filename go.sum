@@ -38,6 +38,10 @@ github.com/carabiner-dev/ampel v0.0.0-20250319041049-d2577437ce22 h1:nqs1k5I5Dbw
 github.com/carabiner-dev/ampel v0.0.0-20250319041049-d2577437ce22/go.mod h1:1PVOSYHoIIe3BhmGVA8jOqdHMhNyLGmyHI7iG7T/K+g=
 github.com/carabiner-dev/ampel v0.0.0-20250319042351-e4de050265b1 h1:VioJ/Fr+nqboHpiHyHZD16dEdVojQYvevygh8zGqZPI=
 github.com/carabiner-dev/ampel v0.0.0-20250319042351-e4de050265b1/go.mod h1:1PVOSYHoIIe3BhmGVA8jOqdHMhNyLGmyHI7iG7T/K+g=
+github.com/carabiner-dev/ampel v0.0.0-20250319165632-a981b5556834 h1:xnEcwHsur5ReSqNo35O5yLCv5D5Cj7ao2oz2gvTnZI0=
+github.com/carabiner-dev/ampel v0.0.0-20250319165632-a981b5556834/go.mod h1:1PVOSYHoIIe3BhmGVA8jOqdHMhNyLGmyHI7iG7T/K+g=
+github.com/carabiner-dev/ampel v0.0.0-20250319173828-d37a72b1e367 h1:Arp5CA+MJQH8v95QnvzVMe1WRzLJ9BvRo5J7bHmEZSg=
+github.com/carabiner-dev/ampel v0.0.0-20250319173828-d37a72b1e367/go.mod h1:1PVOSYHoIIe3BhmGVA8jOqdHMhNyLGmyHI7iG7T/K+g=
 github.com/carabiner-dev/ghrfs v0.2.0 h1:PoTLg1jYWppAiHJHOMu3d1tmLSZQeV4b1nfemXjV32Y=
 github.com/carabiner-dev/ghrfs v0.2.0/go.mod h1:a+yWFohrZWbYExl5hAMqC1OyhMpfpPa9xrwRzv1Vzy0=
 github.com/carabiner-dev/ghrfs v0.2.1 h1:D+HNsBH1dcfVvsnXXS9INbJZkCd7oqSgVXdCtEtRC/Y=

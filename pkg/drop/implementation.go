@@ -95,6 +95,7 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 	return nil, fmt.Errorf("no asset found for %s", spec.GetRepo())
 }
 
+// FetchPolicies reads the artifact policies from the specified repo
 func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*ampel.PolicySet, error) {
 	repoBaseUrl := fmt.Sprintf(
 		"https://%s/%s/%s", asset.GetHost(), asset.GetOrg(), defaultPolicyRepo,
@@ -102,6 +103,11 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 	if opts.PolicyRepository != "" {
 		repoBaseUrl = opts.PolicyRepository
 	}
+
+	opts.Listener.HandleEvent(
+		&Event{Object: EventObjectPolicy, Verb: EventVerbGet,
+			Data: map[string]string{"repo": repoBaseUrl}},
+	)
 
 	locator := fmt.Sprintf(
 		"%s#policy/%s/%s/%s", repoBaseUrl,
@@ -170,6 +176,14 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		}
 		ret = append(ret, pset)
 	}
+
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectPolicy, Verb: EventVerbDone,
+			Data: map[string]string{"count": fmt.Sprintf("%d", len(ret))},
+		},
+	)
+
 	return ret, nil
 }
 
@@ -193,6 +207,10 @@ func (di *defaultImplementation) VerifyAsset(
 ) (bool, *ampel.ResultSet, error) {
 	// Create a verifier, for now we will only support attestations
 	// published along the artifact (as GitHub assets):
+
+	opts.Listener.HandleEvent(
+		&Event{Object: EventObjectVerification, Verb: EventVerbRunning},
+	)
 
 	// Create the collector
 	collector, err := release.New(
@@ -234,6 +252,16 @@ func (di *defaultImplementation) VerifyAsset(
 		}
 	}
 
+	p := "true"
+	if !passed {
+		p = "false"
+	}
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectVerification, Verb: EventVerbDone, Data: map[string]string{"passed": p},
+		},
+	)
+
 	return passed, results, nil
 }
 
@@ -264,6 +292,15 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 	if opts.OS == system.OSWindows {
 		filename += ".exe"
 	}
+
+	// Send the evento to the notifier
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectAsset, Verb: EventVerbGet,
+			Data: map[string]string{"filename": filename, "size": fmt.Sprintf("%d", asset.GetSize())},
+		},
+	)
+
 	path := filepath.Join(opts.DownloadPath, filename)
 	if util.Exists(path) {
 		return "", fmt.Errorf("file %q already exists, will not overwrite", path)
@@ -276,5 +313,6 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 	if err := di.DownloadAssetToWriter(opts, f, asset); err != nil {
 		return "", err
 	}
+
 	return path, nil
 }

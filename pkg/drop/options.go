@@ -24,13 +24,20 @@ var defaultGetOptions = GetOptions{
 
 type Options struct {
 	PolicyRepository string
+	Listener         ProgressListener
 }
 
 type GetOptions struct {
+	// Embedded dropper options to pass to implementation
 	Options
+
+	// Directory where the asset will be downloaded
 	DownloadPath string
-	OS           string
-	Arch         string
+
+	// Platform to download
+	OS   string
+	Arch string
+
 	// Filename to store the downloaded asset
 	FileName string
 
@@ -56,6 +63,13 @@ func WithPolicyRepository(repoURL string) FuncOption {
 			return err
 		}
 		d.Options.PolicyRepository = str
+		return nil
+	}
+}
+
+func WithListener(listener ProgressListener) FuncOption {
+	return func(d *Dropper) error {
+		d.Options.Listener = listener
 		return nil
 	}
 }

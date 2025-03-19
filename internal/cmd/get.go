@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/carabiner-dev/drop/internal/notifier"
 	"github.com/carabiner-dev/drop/pkg/drop"
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
@@ -146,6 +147,7 @@ of %s policies to secure their releases ✨
 			// Create the new dropper instance
 			dropper, err := drop.New(
 				drop.WithPolicyRepository(opts.PolicyRepo),
+				drop.WithListener(&notifier.Listener{}),
 			)
 			if err != nil {
 				return fmt.Errorf("cerating dropper: %w", err)

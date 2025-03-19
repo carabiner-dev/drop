@@ -60,6 +60,11 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 		}
 	}
 
+	// Ensure we have the noop listener so we don't have to check everytime
+	if opts.Listener == nil {
+		opts.Listener = &NoopListener{}
+	}
+
 	asset, err := dropper.impl.ChooseAsset(&opts, dropper.client, spec)
 	if err != nil {
 		return fmt.Errorf("unable to locate a suitable asset: %w", err)
@@ -93,13 +98,31 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 		return ErrVerificationFailed
 	}
 
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectAsset, Verb: EventVerbSaved,
+			Data: map[string]string{"path": downloadPath},
+		},
+	)
+
 	return nil
 }
 
 // Install downloads, verifies and installs an artifact from a release
-func (dropper *Dropper) Install(spec github.AssetDataProvider) error {
+func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetOption) error {
 	opts := defaultGetOptions
 	opts.Options = dropper.Options
+
+	for _, fn := range funcs {
+		if err := fn(&opts); err != nil {
+			return err
+		}
+	}
+
+	// Ensure we have the noop listener so we don't have to check everytime
+	if opts.Listener == nil {
+		opts.Listener = &NoopListener{}
+	}
 
 	sysinfo, err := dropper.impl.GetSystemInfo(&dropper.Options)
 	if err != nil {

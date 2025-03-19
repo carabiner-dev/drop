@@ -26,7 +26,7 @@ func New() (*Client, error) {
 			&oauth2.Token{AccessToken: token},
 		))
 	} else {
-		logrus.Warn("Running unauthenticated. Watch out for rate limits from  the GitHub API")
+		logrus.Debugf("WARN: Running unauthenticated. Watch out for rate limits from  the GitHub API")
 	}
 
 	client := gogithub.NewClient(httpClient)
