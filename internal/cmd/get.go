@@ -61,7 +61,57 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 func addGet(parentCmd *cobra.Command) {
 	opts := &getOptions{}
 	attCmd := &cobra.Command{
-		Short:             "downloads a installer or other asset and verifies it",
+		Short: "downloads and verifies artifacts from GitHub releases",
+		Long: fmt.Sprintf(`
+%s
+
+The %s subcommand downloads assets from a GitHub release. It is intended to
+download installable artifacts but it can download, and potentially verify, any
+file published as a release asset.
+
+%s
+
+By default, %s looks for attestations published along the artifacts and 
+security policies in a specially named .ampel directory in the same GitHub
+organization where the files are hosted. You can specify an alternative 
+policy repository.
+
+Artifacts in a release are grouped into an "installable". This is a named entry
+that groups together all platform variants, packages and archives as well as 
+their security metadata files (SBOMs, attestations, etc). The %s subcommand
+lets you list the release installables and their components.
+
+When downloading an installable, %s will download an installable that
+matches the repository name and the version matching the local os+arch platform.
+For example, on windows this invocation:
+
+  drop get github.com/org/repo
+  
+will download a vinary to repo.exe for the local architecture. You can override
+the variant to download with --platform:
+
+  drop get --platform=linux/amd64 github.com/org/repo
+
+If the installable does not match the repo name or the release has more than
+one installable, you can specify another adding a frament (data after #) to the
+app URL. For example, if "repo" publishes a "server" binary, you can dowload it
+with:
+
+  drop get github.com/org/repo#server
+
+
+%s
+
+All downloads are verified. If you really *really* want to skip the verification
+process, you can add the --i-want-insecure-software flag:
+
+  drop get --i-want-insecure-software github.com/shadyorg/repo
+
+We would of course recommend that you suggest to the organization adding a couple
+of %s policies to secure their releases ✨
+
+`, DropBanner("Download and verify artifacts from GitHub releases"), w2("get"), w("SPECIFYING A DOWNLOAD"), w2("drop get"), w2("ls"), w2("drop get"), w("⚠️ Skipping Verification"), AmpelBanner(""),
+		),
 		Use:               "get",
 		Example:           fmt.Sprintf(`%s get github.com/app/repo`, appname),
 		SilenceUsage:      false,
