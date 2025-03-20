@@ -29,3 +29,27 @@ func TestGetTypeFromFile(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTypeExtensionFromFile(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		sut        string
+		expectType string
+		expectExt  string
+	}{
+		{"zip", "file.zip", "zip", "zip"},
+		{"tar.gz", "file.tar.gz", "tgz", "tar.gz"},
+		{"tgz", "file.tgz", "tgz", "tgz"},
+		{"gz", "file.other.gz", "gz", "gz"},
+		{"bzip-variant-1", "file.other.bz", "bz2", "bz"},
+		{"bzip-variant-2", "file.other.bz2", "bz2", "bz2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tp, ext := ArchiveExtensions.GetTypeExtensionFromFile(tc.sut)
+			require.Equal(t, tc.expectType, tp)
+			require.Equal(t, tc.expectExt, ext)
+		})
+	}
+}

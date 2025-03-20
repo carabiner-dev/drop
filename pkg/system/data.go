@@ -99,20 +99,27 @@ const (
 type ExtensionList map[string][]string
 
 func (el *ExtensionList) GetTypeFromFile(filename string) string {
+	t, _ := el.GetTypeExtensionFromFile(filename)
+	return t
+}
+
+func (el *ExtensionList) GetTypeExtensionFromFile(filename string) (string, string) {
 	// To get this we need to greedy check the suffixes, so sort
 	matchlen := 0
 	matchedType := ""
+	fileext := ""
 	for t, exts := range *el {
 		for _, ext := range exts {
 			if strings.HasSuffix(filename, "."+ext) {
 				if len(ext) > matchlen {
 					matchedType = t
 					matchlen = len(ext)
+					fileext = ext
 				}
 			}
 		}
 	}
-	return matchedType
+	return matchedType, fileext
 }
 
 var PackageExtensions = ExtensionList{
