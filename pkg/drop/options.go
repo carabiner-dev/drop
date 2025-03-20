@@ -41,6 +41,10 @@ type GetOptions struct {
 	// Filename to store the downloaded asset
 	FileName string
 
+	// computedFilename is the filename automatically determined when choosing
+	// which file to download.
+	computedFilename string
+
 	// TransferTimeOut is the number of seconds after which the http request
 	// will time out.
 	TransferTimeOut int

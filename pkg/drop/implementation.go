@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -83,10 +84,25 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 			if installable, ok := asset.(*github.Installable); ok {
 				for _, variant := range installable.Variants {
 					if variant.Os == opts.OS && variant.Arch == opts.Arch {
-						opts.FileName = installable.GetName()
+						// Check to see if its a package or archive
+						packageType := system.PackageExtensions.GetTypeFromFile(variant.GetName())
+						archiveType := system.ArchiveExtensions.GetTypeFromFile(variant.GetName())
+
+						// For expected binaries, we use the installer name
+						if packageType == "" && archiveType == "" {
+							opts.computedFilename = installable.GetName()
+							if variant.Os == system.OSWindows {
+								opts.computedFilename += ".exe"
+							}
+						} else {
+							// When handling packages or archives, keep the same name
+							opts.computedFilename = variant.GetName()
+						}
+
 						return variant, nil
 					}
 				}
+
 				logrus.Debugf("no variant found for %s/%s", opts.OS, opts.Arch)
 				return nil, ErrNoPlatformVariant
 			}
@@ -281,16 +297,18 @@ func (di *defaultImplementation) DownloadAssetToWriter(opts *GetOptions, w io.Wr
 	return nil
 }
 
+// DownloadAssetToFile downloads an asset to a file. The filename will be determined
+// by the installable name, type and arch.
 func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset github.AssetDataProvider) (string, error) {
-	filename := asset.GetName()
+	filename := opts.computedFilename
 	if opts.FileName != "" {
-		filename = opts.FileName
-	}
-
-	// TODO(puerco): This should no be done when getting packages or
-	// archives:
-	if opts.OS == system.OSWindows {
-		filename += ".exe"
+		// TODO(puerco): Check if this is a dir.
+		//  and if so, use the computed filename and
+		if util.IsDir(opts.FileName) {
+			filename = path.Join(filename, opts.computedFilename)
+		} else {
+			filename = opts.FileName
+		}
 	}
 
 	// Send the evento to the notifier
