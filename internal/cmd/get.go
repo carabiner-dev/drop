@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/carabiner-dev/drop/internal/notifier"
 	"github.com/carabiner-dev/drop/pkg/drop"
@@ -15,13 +16,16 @@ import (
 )
 
 type getOptions struct {
-	AppUrl     string
-	Platform   string
-	PolicyRepo string
-	Timeout    int
-	Quiet      bool
-	Insecure   bool
+	AppUrl       string
+	Platform     string
+	PolicyRepo   string
+	DownloadType string
+	Timeout      int
+	Quiet        bool
+	Insecure     bool
 }
+
+var downloadTypes = []string{"binary", "package", "archive"}
 
 // Validates the options in context with arguments
 func (io *getOptions) Validate() error {
@@ -32,6 +36,11 @@ func (io *getOptions) Validate() error {
 
 	if io.Timeout == 0 {
 		errs = append(errs, errors.New("timeout must be larger than zero"))
+	}
+
+	if io.DownloadType != "" && !slices.Contains(downloadTypes, io.DownloadType) &&
+		io.DownloadType != "a" && io.DownloadType != "b" && io.DownloadType != "p" {
+		errs = append(errs, fmt.Errorf("invalid download type valid types are %v", downloadTypes))
 	}
 
 	return errors.Join(errs...)
@@ -66,6 +75,10 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 
 	cmd.PersistentFlags().BoolVar(
 		&io.Insecure, "insecure", false, "skip security verification (not recommended)",
+	)
+
+	cmd.PersistentFlags().StringVarP(
+		&io.DownloadType, "type", "t", "", fmt.Sprintf("asset type to download (%v)", downloadTypes),
 	)
 }
 
@@ -177,6 +190,7 @@ of %s policies to secure their releases ✨
 				drop.WithTransferTimeOut(opts.Timeout),
 				drop.WithPlatform(opts.Platform),
 				drop.WithVerifyDownloads(!opts.Insecure),
+				drop.WithDownloadType(opts.DownloadType),
 			); err != nil {
 				return fmt.Errorf("error downloading: %w", err)
 			}

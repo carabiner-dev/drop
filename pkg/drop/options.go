@@ -53,6 +53,9 @@ type GetOptions struct {
 	// security verification. This allows the tool to be used as a curl-like
 	// thing for repos.
 	SkipVerification bool
+
+	// DownloadType is "a","b" or "p" and determines which download we do
+	DownloadType string
 }
 
 type (
@@ -120,6 +123,19 @@ func WithTransferTimeOut(seconds int) FuncGetOption {
 func WithVerifyDownloads(verify bool) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.SkipVerification = !verify
+		return nil
+	}
+}
+
+func WithDownloadType(t string) FuncGetOption {
+	return func(o *GetOptions) error {
+		if t != "" {
+			t = t[0:1]
+		}
+		if t != "" && t != "a" && t != "b" && t != "p" {
+			return fmt.Errorf("invalid dowload type")
+		}
+		o.DownloadType = t
 		return nil
 	}
 }
