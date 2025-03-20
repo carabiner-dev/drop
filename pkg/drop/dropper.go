@@ -76,7 +76,7 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 		return fmt.Errorf("finding asset polcies: %w", err)
 	}
 
-	if len(policies) == 0 {
+	if len(policies) == 0 && !opts.SkipVerification {
 		return ErrNoPolicyAvailable
 	}
 
@@ -86,16 +86,22 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 	}
 
 	// Verify the asset data
-	ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
-	if err != nil {
-		_ = os.Remove(downloadPath)
-		return fmt.Errorf("error verifying asset: %w", err)
-	}
+	if opts.SkipVerification {
+		opts.Listener.HandleEvent(
+			&Event{Object: EventObjectVerification, Verb: EventVerbSkipped},
+		)
+	} else {
+		ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
+		if err != nil {
+			_ = os.Remove(downloadPath)
+			return fmt.Errorf("error verifying asset: %w", err)
+		}
 
-	// If verification failed, we're done
-	if !ok {
-		_ = os.Remove(downloadPath)
-		return ErrVerificationFailed
+		// If verification failed, we're done
+		if !ok {
+			_ = os.Remove(downloadPath)
+			return ErrVerificationFailed
+		}
 	}
 
 	opts.Listener.HandleEvent(

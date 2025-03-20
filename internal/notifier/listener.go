@@ -65,6 +65,8 @@ func (l *Listener) HandleEvent(event *drop.Event) error {
 		switch event.Verb {
 		case drop.EventVerbRunning:
 			fmt.Printf("  🛡️  %s\n", w("Verifying artifact..."))
+		case drop.EventVerbSkipped:
+			fmt.Printf("  🚫  %s\n", w("Security verification skipped"))
 		case drop.EventVerbDone:
 			if s := event.GetDataField("passed"); s != "" {
 				if s == "true" {

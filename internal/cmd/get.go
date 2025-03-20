@@ -20,6 +20,7 @@ type getOptions struct {
 	PolicyRepo string
 	Timeout    int
 	Quiet      bool
+	Insecure   bool
 }
 
 // Validates the options in context with arguments
@@ -61,6 +62,10 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 
 	cmd.PersistentFlags().BoolVarP(
 		&io.Quiet, "quiet", "q", false, "less verbose output (for scripts, etc)",
+	)
+
+	cmd.PersistentFlags().BoolVar(
+		&io.Insecure, "insecure", false, "skip security verification (not recommended)",
 	)
 }
 
@@ -109,9 +114,9 @@ with:
 %s
 
 All downloads are verified. If you really *really* want to skip the verification
-process, you can add the --i-want-insecure-software flag:
+process, you can add the --insecure flag:
 
-  drop get --i-want-insecure-software github.com/shadyorg/repo
+  drop get --insecure github.com/shadyorg/repo
 
 We would of course recommend that you suggest to the organization adding a couple
 of %s policies to secure their releases ✨
@@ -171,6 +176,7 @@ of %s policies to secure their releases ✨
 				drop.WithDownloadPath("."),
 				drop.WithTransferTimeOut(opts.Timeout),
 				drop.WithPlatform(opts.Platform),
+				drop.WithVerifyDownloads(!opts.Insecure),
 			); err != nil {
 				return fmt.Errorf("error downloading: %w", err)
 			}

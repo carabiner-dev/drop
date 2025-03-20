@@ -12,6 +12,7 @@ const (
 	EventVerbGet     = "get"
 	EventVerbRunning = "running"
 	EventVerbSaved   = "saved"
+	EventVerbSkipped = "skipped"
 )
 
 type Event struct {

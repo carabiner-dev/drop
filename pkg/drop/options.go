@@ -44,6 +44,11 @@ type GetOptions struct {
 	// TransferTimeOut is the number of seconds after which the http request
 	// will time out.
 	TransferTimeOut int
+
+	// SkipVerification instructs the dropper engine to skip the artifact
+	// security verification. This allows the tool to be used as a curl-like
+	// thing for repos.
+	SkipVerification bool
 }
 
 type (
@@ -104,6 +109,13 @@ func WithTransferTimeOut(seconds int) FuncGetOption {
 			return fmt.Errorf("transfer timeout seconds cannot be zer")
 		}
 		o.TransferTimeOut = seconds
+		return nil
+	}
+}
+
+func WithVerifyDownloads(verify bool) FuncGetOption {
+	return func(o *GetOptions) error {
+		o.SkipVerification = !verify
 		return nil
 	}
 }
