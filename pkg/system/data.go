@@ -122,6 +122,18 @@ func (el *ExtensionList) GetTypeExtensionFromFile(filename string) (string, stri
 	return matchedType, fileext
 }
 
+// IsPackage takes a filename and returns true if it matches a known package type
+func IsPackage(filename string) bool {
+	t := PackageExtensions.GetTypeFromFile(filename)
+	return t != ""
+}
+
+// IsArchive takes a filename and returns true if it matches a known archive type
+func IsArchive(filename string) bool {
+	t := ArchiveExtensions.GetTypeFromFile(filename)
+	return t != ""
+}
+
 var PackageExtensions = ExtensionList{
 	PackageRPM: {"rpm"},
 	PackageDeb: {"deb"},

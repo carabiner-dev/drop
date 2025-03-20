@@ -79,18 +79,18 @@ func permString(item github.AssetDataProvider) string {
 		str[0] = '📄'
 		if artifact.Os == system.OSLinux {
 			str[1] = '🐧'
-		} else {
-			str[1] = '➖'
 		}
 		if artifact.Os == system.OSDarwin {
 			str[2] = '🍏'
-		} else {
-			str[2] = '➖'
 		}
 		if artifact.Os == system.OSWindows {
 			str[3] = '🪟'
-		} else {
-			str[3] = '➖'
+		}
+		if system.IsPackage(artifact.GetName()) {
+			str[4] = '📦'
+		}
+		if system.IsArchive(artifact.GetName()) {
+			str[5] = '🎁'
 		}
 	}
 
