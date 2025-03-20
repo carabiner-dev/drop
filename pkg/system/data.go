@@ -3,9 +3,11 @@
 
 package system
 
+import "strings"
+
 var (
 	PackageTypes = []string{PackageRPM, PackageDeb, PackageApk, PackageDmg, PackageMSI}
-	ArchiveTypes = []string{ArchiveZip, ArchiveTar, ArchiveBz, ArchiveBz2, ArchiveGz, ArchiveXz, ArchiveRar, ArchiveL7, ArchiveTgz}
+	ArchiveTypes = []string{ArchiveZip, ArchiveTar, ArchiveBz2, ArchiveGz, ArchiveXz, ArchiveRar, ArchiveL7, ArchiveTgz}
 )
 
 // OS alias maps
@@ -85,7 +87,6 @@ const (
 
 	ArchiveZip = "zip"
 	ArchiveTar = "tar"
-	ArchiveBz  = "bz"
 	ArchiveBz2 = "bz2"
 	ArchiveGz  = "gz"
 	ArchiveXz  = "xz"
@@ -94,3 +95,43 @@ const (
 	ArchiveTgz = "tgz"
 	Archive7z  = "7z"
 )
+
+type ExtensionList map[string][]string
+
+func (el *ExtensionList) GetTypeFromFile(filename string) string {
+	// To get this we need to greedy check the suffixes, so sort
+	matchlen := 0
+	matchedType := ""
+	for t, exts := range *el {
+		for _, ext := range exts {
+			if strings.HasSuffix(filename, "."+ext) {
+				if len(ext) > matchlen {
+					matchedType = t
+					matchlen = len(ext)
+				}
+			}
+		}
+	}
+	return matchedType
+}
+
+var PackageExtensions = ExtensionList{
+	PackageRPM: {"rpm"},
+	PackageDeb: {"deb"},
+	PackageApk: {"apk"},
+	PackageDmg: {"dmg"},
+	PackageMSI: {"msi"},
+	PackageWhl: {"whl"},
+}
+
+var ArchiveExtensions = ExtensionList{
+	ArchiveZip: {"zip"},
+	ArchiveTar: {"tar"},
+	ArchiveBz2: {"bz2", "bz"},
+	ArchiveGz:  {"gz"},
+	ArchiveXz:  {"xz"},
+	ArchiveRar: {"rar"},
+	ArchiveL7:  {"l7"},
+	ArchiveTgz: {"tar.gz", "tgz"},
+	Archive7z:  {"7z"},
+}
