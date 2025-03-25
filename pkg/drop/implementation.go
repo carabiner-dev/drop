@@ -80,74 +80,91 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 	}
 
 	for _, asset := range assets {
-		if asset.GetName() == name {
-			// Found. Now check if it has variants for the local OS
-			if installable, ok := asset.(*github.Installable); ok {
-				var wantedVariant github.AssetDataProvider
-				for _, variant := range installable.Variants {
-					// If the os or arch is not what we want, ignore it.
-					if variant.Os != opts.OS || variant.Arch != opts.Arch {
-						continue
-					}
-
-					// Check to see if its a package or archive
-					packageType := system.PackageExtensions.GetTypeFromFile(variant.GetName())
-					archiveType := system.ArchiveExtensions.GetTypeFromFile(variant.GetName())
-
-					// If we want a binary and this is a package or archive, ignore
-					if opts.DownloadType != "" && opts.DownloadType == "b" && (archiveType != "" || packageType != "") {
-						continue
-					}
-
-					// If we want a package and this is not one, ignore
-					if opts.DownloadType != "" && opts.DownloadType == "p" && packageType == "" {
-						continue
-					}
-
-					// Same for archive, skip if it is something else
-					if opts.DownloadType != "" && opts.DownloadType == "a" && archiveType == "" {
-						continue
-					}
-
-					// For expected binaries, we use the installer name
-					if packageType == "" && archiveType == "" {
-						opts.computedFilename = installable.GetName()
-						if variant.Os == system.OSWindows {
-							opts.computedFilename += ".exe"
-						}
-					} else {
-						// When handling packages or archives, keep the same name
-						opts.computedFilename = variant.GetName()
-					}
-
-					// If we are not looking for a specific type, and its a
-					// binary, return it immediately
-					if packageType == "" && archiveType == "" {
-						return variant, nil
-					}
-
-					// Otherwise capture the asset but prefer archives
-					if wantedVariant == nil {
-						wantedVariant = variant
-					} else if archiveType != "" {
-						wantedVariant = variant
-					}
+		if asset.GetName() != name {
+			continue
+		}
+		// Found. Now check if it has variants for the local OS
+		if installable, ok := asset.(*github.Installable); ok {
+			var wantedVariant github.AssetDataProvider
+			for _, variant := range installable.Variants {
+				// If the os or arch is not what we want, ignore it.
+				if variant.Os != opts.OS || variant.Arch != opts.Arch {
+					continue
 				}
 
-				if wantedVariant != nil {
-					opts.computedFilename = wantedVariant.GetName()
-					return wantedVariant, nil
+				// Check to see if its a package or archive
+				packageType := system.PackageExtensions.GetTypeFromFile(variant.GetName())
+				archiveType := system.ArchiveExtensions.GetTypeFromFile(variant.GetName())
+
+				// If we want a binary and this is a package or archive, ignore
+				if opts.DownloadType != "" && opts.DownloadType == "b" && (archiveType != "" || packageType != "") {
+					continue
 				}
 
-				logrus.Debugf("no variant found for %s/%s", opts.OS, opts.Arch)
-				return nil, ErrNoPlatformVariant
-			} else {
-				// If this is not an insallable, then return it. It has no variants
-				opts.computedFilename = asset.GetName()
-				return asset, nil
+				// If we want a package and this is not one, ignore
+				if opts.DownloadType != "" && opts.DownloadType == "p" && packageType == "" {
+					continue
+				}
+
+				// Same for archive, skip if it is something else
+				if opts.DownloadType != "" && opts.DownloadType == "a" && archiveType == "" {
+					continue
+				}
+
+				// For expected binaries, we use the installer name
+				if packageType == "" && archiveType == "" {
+					opts.computedFilename = installable.GetName()
+					if variant.Os == system.OSWindows {
+						opts.computedFilename += ".exe"
+					}
+				} else {
+					// When handling packages or archives, keep the same name
+					opts.computedFilename = variant.GetName()
+				}
+
+				// If we are not looking for a specific type, and its a
+				// binary, return it immediately
+				if packageType == "" && archiveType == "" {
+					return variant, nil
+				}
+
+				// Otherwise capture the asset but prefer archives
+				if wantedVariant == nil {
+					wantedVariant = variant
+				} else if archiveType != "" {
+					wantedVariant = variant
+				}
+			}
+
+			if wantedVariant != nil {
+				opts.computedFilename = wantedVariant.GetName()
+				return wantedVariant, nil
+			}
+
+			logrus.Debugf("no variant found for %s/%s", opts.OS, opts.Arch)
+			return nil, ErrNoPlatformVariant
+		}
+
+		// If the file matches, it is not an installable, return the plain asset
+		opts.computedFilename = asset.GetName()
+		return asset, nil
+	}
+
+	// Before we go, now check all variants for a matching filename in case
+	// the user specified the exact name in the URL spec:
+	for _, asset := range assets {
+		installable, ok := asset.(*github.Installable)
+		if !ok {
+			continue
+		}
+		for _, v := range installable.Variants {
+			if v.GetName() == name {
+				opts.computedFilename = v.GetName()
+				return v, nil
 			}
 		}
 	}
+
 	return nil, fmt.Errorf("no asset found for %s", spec.GetRepo())
 }
 
