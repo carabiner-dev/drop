@@ -103,23 +103,21 @@ func (el *ExtensionList) GetTypeFromFile(filename string) string {
 	return t
 }
 
-func (el *ExtensionList) GetTypeExtensionFromFile(filename string) (string, string) {
+func (el *ExtensionList) GetTypeExtensionFromFile(filename string) (fileType, extension string) {
 	// To get this we need to greedy check the suffixes, so sort
 	matchlen := 0
-	matchedType := ""
-	fileext := ""
 	for t, exts := range *el {
 		for _, ext := range exts {
 			if strings.HasSuffix(filename, "."+ext) {
 				if len(ext) > matchlen {
-					matchedType = t
+					fileType = t
 					matchlen = len(ext)
-					fileext = ext
+					extension = ext
 				}
 			}
 		}
 	}
-	return matchedType, fileext
+	return fileType, extension
 }
 
 // IsPackage takes a filename and returns true if it matches a known package type

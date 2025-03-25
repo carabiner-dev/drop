@@ -28,6 +28,8 @@ func newAssetFromGitHubAsset(src ReleaseDataProvider, asset *gogithub.ReleaseAss
 	}
 }
 
+// Asset is an abstraction of a file released on GitHub. It captures the basic
+// file information but also its type platform and version.
 type Asset struct {
 	// RepoData
 	Host string

@@ -10,10 +10,12 @@ import (
 	"strings"
 )
 
-var regexCache = map[string]*regexp.Regexp{}
-var FilenameSeparators = map[string]string{
-	"-": "-", "_": "_", ".": ".",
-}
+var (
+	regexCache         = map[string]*regexp.Regexp{}
+	FilenameSeparators = map[string]string{
+		"-": "-", "_": "_", ".": ".",
+	}
+)
 
 // GetArch returns the "official" (according to this library) arch label
 // from a string. If it does not match one of the known aliases it returns an

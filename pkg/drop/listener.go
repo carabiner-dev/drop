@@ -31,12 +31,11 @@ func (e *Event) GetDataField(field string) string {
 // ProgressListener is an object that reacts to the events from the
 // downloader.
 type ProgressListener interface {
-	HandleEvent(event *Event) error
+	HandleEvent(event *Event)
 }
 
 // NoopListener is a listener tht just swallows events without doing anything
 type NoopListener struct{}
 
-func (*NoopListener) HandleEvent(event *Event) error {
-	return nil
+func (*NoopListener) HandleEvent(event *Event) {
 }

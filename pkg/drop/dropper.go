@@ -27,7 +27,6 @@ type Dropper struct {
 
 func New(funcs ...FuncOption) (*Dropper, error) {
 	opts := defaultOptions
-	// TODO(puerco): Get functional opts
 
 	// Create github client
 	client, err := github.New()
@@ -93,13 +92,13 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 	} else {
 		ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
 		if err != nil {
-			_ = os.Remove(downloadPath)
+			_ = os.Remove(downloadPath) //nolint:errcheck
 			return fmt.Errorf("error verifying asset: %w", err)
 		}
 
 		// If verification failed, we're done
 		if !ok {
-			_ = os.Remove(downloadPath)
+			_ = os.Remove(downloadPath) //nolint:errcheck
 			return ErrVerificationFailed
 		}
 	}

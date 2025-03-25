@@ -25,7 +25,6 @@ func TestNewAssetFromURLString(t *testing.T) {
 			&Asset{Org: "carabiner-dev", Repo: "drop"},
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			a := NewAssetFromURLString(tc.input)

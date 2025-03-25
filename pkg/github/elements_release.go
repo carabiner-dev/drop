@@ -9,7 +9,10 @@ import (
 	gogithub "github.com/google/go-github/v60/github"
 )
 
-func newReleaseFromGitHubRelease(repo RepoDataProvider, release *gogithub.RepositoryRelease) *Release {
+func newReleaseFromGitHubRelease(
+	repo RepoDataProvider,
+	release *gogithub.RepositoryRelease,
+) *Release {
 	return &Release{
 		Host:       repo.GetHost(),
 		Repo:       repo.GetRepo(),
@@ -22,6 +25,7 @@ func newReleaseFromGitHubRelease(repo RepoDataProvider, release *gogithub.Reposi
 	}
 }
 
+// Release captures the information of a GitHub release.
 type Release struct {
 	// Repository
 	Host string

@@ -11,14 +11,13 @@ import (
 	"github.com/fatih/color"
 )
 
-var (
-	w  = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
-	w2 = color.New(color.Faint, color.FgWhite, color.BgBlack).SprintFunc()
-)
+var w = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
+
+// w2 = color.New(color.Faint, color.FgWhite, color.BgBlack).SprintFunc()
 
 type Listener struct{}
 
-func (l *Listener) HandleEvent(event *drop.Event) error {
+func (l *Listener) HandleEvent(event *drop.Event) {
 	switch event.Object {
 	case drop.EventObjectPolicy:
 		switch event.Verb {
@@ -28,7 +27,6 @@ func (l *Listener) HandleEvent(event *drop.Event) error {
 				repo = fmt.Sprintf(" (source: %s)", s)
 			}
 			fmt.Printf("  💫 %s%s\n", w("Looking for policies"), repo)
-			return nil
 		case drop.EventVerbDone:
 			sets := "0"
 			if s := event.GetDataField("count"); s != "" {
@@ -79,5 +77,4 @@ func (l *Listener) HandleEvent(event *drop.Event) error {
 			}
 		}
 	}
-	return nil
 }

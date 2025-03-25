@@ -13,9 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"sigs.k8s.io/release-utils/http"
-	"sigs.k8s.io/release-utils/util"
-
 	ampel "github.com/carabiner-dev/ampel/pkg/api/v1"
 	"github.com/carabiner-dev/ampel/pkg/attestation"
 	"github.com/carabiner-dev/ampel/pkg/collector"
@@ -23,11 +20,12 @@ import (
 	gitcollector "github.com/carabiner-dev/ampel/pkg/repository/git"
 	"github.com/carabiner-dev/ampel/pkg/repository/release"
 	"github.com/carabiner-dev/ampel/pkg/verifier"
-	"github.com/carabiner-dev/hasher"
-	"github.com/sirupsen/logrus"
-
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
+	"github.com/carabiner-dev/hasher"
+	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/release-utils/http"
+	"sigs.k8s.io/release-utils/util"
 )
 
 type installerImplementation interface {
@@ -178,8 +176,10 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 	}
 
 	opts.Listener.HandleEvent(
-		&Event{Object: EventObjectPolicy, Verb: EventVerbGet,
-			Data: map[string]string{"repo": repoBaseUrl}},
+		&Event{
+			Object: EventObjectPolicy, Verb: EventVerbGet,
+			Data: map[string]string{"repo": repoBaseUrl},
+		},
 	)
 
 	locator := fmt.Sprintf(
@@ -266,7 +266,7 @@ func (di *defaultImplementation) DownloadAssetToTmp(opts *GetOptions, asset gith
 	if err != nil {
 		return "", fmt.Errorf("creating temporary file: %w", err)
 	}
-	defer tmpfile.Close()
+	defer tmpfile.Close() //nolint:errcheck
 
 	// Get the data
 	if err := di.DownloadAssetToWriter(opts, tmpfile, asset); err != nil {
@@ -319,8 +319,8 @@ func (di *defaultImplementation) VerifyAsset(
 
 	// Compute the evaluation status
 	passed := true
-	for _, r := range results.Results {
-		if r.Status != ampel.StatusPASS {
+	for _, r := range results.GetResults() {
+		if r.GetStatus() != ampel.StatusPASS {
 			passed = false
 		}
 	}
@@ -329,9 +329,11 @@ func (di *defaultImplementation) VerifyAsset(
 	if !passed {
 		p = "false"
 	}
+
 	opts.Listener.HandleEvent(
 		&Event{
-			Object: EventObjectVerification, Verb: EventVerbDone, Data: map[string]string{"passed": p},
+			Object: EventObjectVerification, Verb: EventVerbDone,
+			Data: map[string]string{"passed": p},
 		},
 	)
 
@@ -380,11 +382,11 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 	if util.Exists(path) {
 		return "", fmt.Errorf("file %q already exists, will not overwrite", path)
 	}
-	f, err := os.Create(path)
+	f, err := os.Create(path) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("downloading file: %w", err)
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	if err := di.DownloadAssetToWriter(opts, f, asset); err != nil {
 		return "", err
 	}

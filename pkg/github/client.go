@@ -5,6 +5,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -68,7 +69,7 @@ func RepoURLFromString(str string) (string, error) {
 	}
 	parts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("URL path needs to have an org and repo")
+		return "", errors.New("URL path needs to have an org and repo")
 	}
 
 	// If it's a locator, trim the branch (if present)

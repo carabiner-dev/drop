@@ -1,7 +1,6 @@
 package github
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/carabiner-dev/drop/pkg/system"
@@ -9,6 +8,7 @@ import (
 )
 
 func TestGetArchFromFilename(t *testing.T) {
+	t.Parallel()
 	expect := []string{
 		system.ArchArm64, system.ArchArm64, system.ArchArm64, system.ArchArm, system.ArchArm,
 		system.ArchArm, system.ArchPPC64LE, system.ArchPPC64LE, system.ArchPPC64LE, system.ArchRiscV64,
@@ -38,12 +38,13 @@ func TestGetArchFromFilename(t *testing.T) {
 		t.Run(filename, func(t *testing.T) {
 			t.Parallel()
 			res := getArchFromFilename(filename)
-			require.Equal(t, expect[i], res, fmt.Sprintf("%d → %s", i, filename))
+			require.Equal(t, expect[i], res, "%d → %s", i, filename)
 		})
 	}
 }
 
 func TestGetOsFromFilename(t *testing.T) {
+	t.Parallel()
 	expect := []string{
 		system.OSDarwin, system.OSLinux, system.OSWindows,
 		system.OSLinux, system.OSDarwin, system.OSLinux,
@@ -60,7 +61,7 @@ func TestGetOsFromFilename(t *testing.T) {
 		t.Run(filename, func(t *testing.T) {
 			t.Parallel()
 			res := getOsFromFilename(filename)
-			require.Equal(t, expect[i], res, fmt.Sprintf("%d → %s", i, filename))
+			require.Equal(t, expect[i], res, "%d → %s", i, filename)
 		})
 	}
 }

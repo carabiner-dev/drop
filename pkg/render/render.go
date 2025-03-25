@@ -4,7 +4,7 @@
 package render
 
 import (
-	"fmt"
+	"errors"
 	"io"
 
 	"github.com/carabiner-dev/drop/pkg/github"
@@ -16,7 +16,7 @@ type optFn func(*Engine) error
 func WithDriver(driver Driver) optFn {
 	return func(e *Engine) error {
 		if driver == nil {
-			return fmt.Errorf("no render driver specified")
+			return errors.New("no render driver specified")
 		}
 		e.driver = driver
 		return nil

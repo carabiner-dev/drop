@@ -3,6 +3,7 @@
 
 package github
 
+// Repository is the basic construct that exposes information of a repository.
 type Repository struct {
 	Host string
 	Repo string

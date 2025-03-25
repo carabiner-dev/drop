@@ -14,8 +14,8 @@ import (
 	"github.com/carabiner-dev/drop/pkg/system"
 )
 
-// Installable abstracts a group of files that are the same app but
-// offer variants for different architectures and OSs.
+// Installable abstracts a group of released assets of the same app
+// that are variants for different architectures and OSs.
 type Installable struct {
 	// RepoData
 	Host string
