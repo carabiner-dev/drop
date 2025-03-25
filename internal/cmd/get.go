@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/spf13/cobra"
+
 	"github.com/carabiner-dev/drop/internal/notifier"
 	"github.com/carabiner-dev/drop/pkg/drop"
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
-	"github.com/spf13/cobra"
 )
 
 type getOptions struct {

@@ -9,10 +9,11 @@ import (
 	"io"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/render"
 	"github.com/carabiner-dev/drop/pkg/render/drivers"
-	"github.com/spf13/cobra"
 )
 
 type lsOptions struct {

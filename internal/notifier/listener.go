@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/carabiner-dev/drop/pkg/drop"
 	"github.com/fatih/color"
+
+	"github.com/carabiner-dev/drop/pkg/drop"
 )
 
 var w = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()

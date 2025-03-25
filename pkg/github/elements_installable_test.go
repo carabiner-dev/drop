@@ -3,8 +3,9 @@ package github
 import (
 	"testing"
 
-	"github.com/carabiner-dev/drop/pkg/system"
 	"github.com/stretchr/testify/require"
+
+	"github.com/carabiner-dev/drop/pkg/system"
 )
 
 func TestGetArchFromFilename(t *testing.T) {
@@ -35,6 +36,8 @@ func TestGetArchFromFilename(t *testing.T) {
 	}
 
 	for i, filename := range fileSet2 {
+		i := i
+		filename := filename
 		t.Run(filename, func(t *testing.T) {
 			t.Parallel()
 			res := getArchFromFilename(filename)

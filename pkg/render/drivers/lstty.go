@@ -9,9 +9,10 @@ import (
 	"slices"
 	"time"
 
+	"github.com/rodaine/table"
+
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
-	"github.com/rodaine/table"
 )
 
 func NewLsTTY() *LsTTY {

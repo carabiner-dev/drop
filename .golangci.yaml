@@ -6,14 +6,6 @@ run:
   concurrency: 6
   timeout: 5m
 issues:
-  exclude-rules:
-    # counterfeiter fakes are usually named 'fake_<something>.go'
-    - path: fake_.*\.go
-      linters:
-        - golint
-        - gocritic
-        - dupl
-
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
 
@@ -28,8 +20,15 @@ formatters:
     - gofumpt
     - goimports
     # - golines
+  settings: 
+    gci:
+      no-inline-comments: false
+      no-prefix-comments: true
+      sections:
+        - standard
+        - default
+        - prefix(github.com/carabiner-dev/drop)
 linters:
-  disable-all: true
   enable:
     - asasalint
     - asciicheck
@@ -111,13 +110,6 @@ linters:
     - zerologlint
 
   settings:
-    gci:
-      no-inline-comments: false
-      no-prefix-comments: true
-      sections:
-        - standard
-        - default
-        - prefix(github.com/carabiner-dev/drop)
     gocyclo:
       min-complexity: 35
     godox:

@@ -8,10 +8,11 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 )
 
 var (
-	regexCache         = map[string]*regexp.Regexp{}
+	regexCache         = sync.Map{}
 	FilenameSeparators = map[string]string{
 		"-": "-", "_": "_", ".": ".",
 	}
@@ -99,8 +100,14 @@ func (ll *LabelList) ToRegex() *regexp.Regexp {
 
 	// Build the whole pattern
 	pattern := "(?i)(" + strings.Join(list, "|") + ")"
-	if _, ok := regexCache[pattern]; !ok {
-		regexCache[pattern] = regexp.MustCompile(pattern)
+
+	rany, ok := regexCache.Load(pattern)
+	if ok {
+		return rany.(*regexp.Regexp)
 	}
-	return regexCache[pattern]
+
+	// If not store it in the cache and return
+	r := regexp.MustCompile(pattern)
+	regexCache.Store(pattern, r)
+	return r
 }

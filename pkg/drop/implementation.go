@@ -20,12 +20,13 @@ import (
 	gitcollector "github.com/carabiner-dev/ampel/pkg/repository/git"
 	"github.com/carabiner-dev/ampel/pkg/repository/release"
 	"github.com/carabiner-dev/ampel/pkg/verifier"
-	"github.com/carabiner-dev/drop/pkg/github"
-	"github.com/carabiner-dev/drop/pkg/system"
 	"github.com/carabiner-dev/hasher"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/release-utils/http"
 	"sigs.k8s.io/release-utils/util"
+
+	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/system"
 )
 
 type installerImplementation interface {

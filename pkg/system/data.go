@@ -24,10 +24,10 @@ var OSAliases = map[string]LabelList{
 
 // Arch alias maps
 var ArchAliases = map[string]LabelList{
-	ArchX8664:   {ArchX8664, ArchAMD64, Arch64Bit, ArchX64},
+	ArchX8664:   {ArchX8664, ArchAMD64, Arch64Bit, ArchX64, ArchX86},
 	ArchArm64:   {ArchArm64, ArchAarch64},
 	ArchArm:     {ArchArm, ArchArmHF, ArchArmV7, ArchArmV7HL},
-	Arch386:     {Arch386, ArchI686, ArchX86, ArchI386, Arch32Bit},
+	Arch386:     {Arch386, ArchI686, ArchI386, Arch32Bit},
 	ArchRiscV64: {ArchRiscV64},
 	ArchS390X:   {ArchS390X},
 	ArchPPC64LE: {ArchPPC64LE, ArchPPC64EL, ArchPPC64},
