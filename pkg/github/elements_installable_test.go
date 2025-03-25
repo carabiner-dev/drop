@@ -36,8 +36,6 @@ func TestGetArchFromFilename(t *testing.T) {
 	}
 
 	for i, filename := range fileSet2 {
-		i := i
-		filename := filename
 		t.Run(filename, func(t *testing.T) {
 			t.Parallel()
 			res := getArchFromFilename(filename)

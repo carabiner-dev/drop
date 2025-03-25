@@ -103,7 +103,9 @@ func (ll *LabelList) ToRegex() *regexp.Regexp {
 
 	rany, ok := regexCache.Load(pattern)
 	if ok {
-		return rany.(*regexp.Regexp)
+		if r, ok2 := rany.(*regexp.Regexp); ok2 {
+			return r
+		}
 	}
 
 	// If not store it in the cache and return
