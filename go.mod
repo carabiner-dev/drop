@@ -12,7 +12,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/oauth2 v0.28.0
-	sigs.k8s.io/release-utils v0.11.0
+	sigs.k8s.io/release-utils v0.11.1
 )
 
 require (
@@ -23,7 +23,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.1.5 // indirect
 	github.com/anchore/go-struct-converter v0.0.0-20230627203149-c72ef8859ca9 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
-	github.com/avast/retry-go/v4 v4.6.0 // indirect
+	github.com/avast/retry-go/v4 v4.6.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/carabiner-dev/ghrfs v0.2.1 // indirect
 	github.com/carabiner-dev/github v0.2.0 // indirect
