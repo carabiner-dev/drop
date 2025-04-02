@@ -57,7 +57,7 @@ jobs:
       
       - run: ko build --bare
         env:
-          GIT_HASH: ${{ github.event.head_commit }}
+          GIT_HASH: ${{ github.sha }}
           GIT_VERSION: ${{ steps.tag.outputs.tag_name }}
 
       - name: Generate Provenance
