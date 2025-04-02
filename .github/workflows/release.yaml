@@ -15,9 +15,10 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: write # Write the release
+      id-token: write # To mint sigstore certs
+      attestations: write # Push the attestations
+      packages: write # To push the image
       
     steps:
       - name: Setup bnd
