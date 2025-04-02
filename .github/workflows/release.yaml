@@ -56,6 +56,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - run: ko build --bare
+        env:
+          GIT_HASH: ${{ github.event.head_commit }}
+          GIT_VERSION: ${{ steps.tag.outputs.tag_name }}
 
       - name: Generate Provenance
         id: tejolote
