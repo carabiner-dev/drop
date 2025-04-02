@@ -66,6 +66,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+            ls -la dist/
             tejolote attest --artifacts github://${{github.repository}}/${{ steps.tag.outputs.tag_name }} github://${{github.repository}}/"${GITHUB_RUN_ID}" --output provenance.json
             bnd statement provenance.json -o drop-${{ steps.tag.outputs.tag_name }}.provenance.json
             gh release upload ${{ steps.tag.outputs.tag_name }} drop-${{ steps.tag.outputs.tag_name }}.provenance.json

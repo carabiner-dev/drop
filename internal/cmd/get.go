@@ -6,9 +6,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/release-utils/util"
 
 	"github.com/carabiner-dev/drop/internal/notifier"
 	"github.com/carabiner-dev/drop/pkg/drop"
@@ -24,6 +26,7 @@ type getOptions struct {
 	Timeout      int
 	Quiet        bool
 	Insecure     bool
+	Directory    string
 }
 
 var downloadTypes = []string{"binary", "package", "archive"}
@@ -80,6 +83,10 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 
 	cmd.PersistentFlags().StringVarP(
 		&io.DownloadType, "type", "t", "", fmt.Sprintf("asset type to download (%v)", downloadTypes),
+	)
+
+	cmd.PersistentFlags().StringVarP(
+		&io.Directory, "directory", "d", ".", "Output directory",
 	)
 }
 
@@ -150,6 +157,16 @@ of %s policies to secure their releases ✨
 			if len(args) > 0 && args[0] != opts.AppUrl {
 				return fmt.Errorf("spec specified twice (--app and argument)")
 			}
+
+			if !util.Exists(opts.Directory) {
+				if err := os.MkdirAll(opts.Directory, os.FileMode(0o755)); err != nil {
+					return fmt.Errorf("creating directory: %w", err)
+				}
+			}
+
+			if !util.IsDir(opts.Directory) {
+				return errors.New("target path does not exist or is not a directory")
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
@@ -187,7 +204,7 @@ of %s policies to secure their releases ✨
 			// Run the download:
 			if err := dropper.Get(
 				asset,
-				drop.WithDownloadPath("."),
+				drop.WithDownloadPath(opts.Directory),
 				drop.WithTransferTimeOut(opts.Timeout),
 				drop.WithPlatform(opts.Platform),
 				drop.WithVerifyDownloads(!opts.Insecure),
