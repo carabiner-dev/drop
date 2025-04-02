@@ -34,6 +34,8 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - uses: ko-build/setup-ko@d982fec422852203cfb2053a8ec6ad302280d04d # v0.8
+
       - name: Install tejolote
         uses: kubernetes-sigs/release-actions/setup-tejolote@a69972745f85aab4ba5d6c681e2a0e7f73eaff2b # v0.3.0
 
@@ -51,6 +53,8 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - run: ko build
 
       - name: Generate Provenance
         id: tejolote
