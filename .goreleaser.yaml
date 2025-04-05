@@ -38,11 +38,11 @@ builds:
 
 archives:
   - formats: binary
-    name_template: snappy-{{ .Tag }}-{{ .Os }}-{{ .Arch }}
+    name_template: drop-{{ .Tag }}-{{ .Os }}-{{ .Arch }}
     allow_different_binary_count: true
 checksum:
   disable: true
-  
+
 release:
   github:
     owner: carabiner-dev
@@ -50,4 +50,4 @@ release:
   prerelease: auto
 
 changelog:
-  disable: true
+   use: github-native
