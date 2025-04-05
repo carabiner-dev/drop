@@ -159,7 +159,9 @@ of %s policies to secure their releases ✨
 			}
 
 			if !util.Exists(opts.Directory) {
-				if err := os.MkdirAll(opts.Directory, os.FileMode(0o755)); err != nil {
+				// in case the variable contains a $HOME or similar variable
+				expandedPath := os.ExpandEnv(opts.Directory)
+				if err := os.MkdirAll(expandedPath, os.FileMode(0o755)); err != nil {
 					return fmt.Errorf("creating directory: %w", err)
 				}
 			}
