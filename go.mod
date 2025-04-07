@@ -3,7 +3,7 @@ module github.com/carabiner-dev/drop
 go 1.24.1
 
 require (
-	github.com/carabiner-dev/ampel v0.0.0-20250319173828-d37a72b1e367
+	github.com/carabiner-dev/ampel v0.0.1-pre3
 	github.com/carabiner-dev/hasher v0.1.0
 	github.com/fatih/color v1.18.0
 	github.com/google/go-github/v60 v60.0.0
@@ -26,7 +26,7 @@ require (
 	github.com/avast/retry-go/v4 v4.6.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/carabiner-dev/ghrfs v0.2.1 // indirect
-	github.com/carabiner-dev/github v0.2.0 // indirect
+	github.com/carabiner-dev/github v0.2.2 // indirect
 	github.com/carabiner-dev/osv v0.0.0-20250124012120-b8ce4531cd92 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
@@ -79,7 +79,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250227231956-55c901821b1e // indirect
 	google.golang.org/grpc v1.70.0 // indirect
-	google.golang.org/protobuf v1.36.5 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
