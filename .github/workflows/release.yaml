@@ -35,13 +35,13 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - uses: ko-build/setup-ko@d982fec422852203cfb2053a8ec6ad302280d04d # v0.8
+      - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d # v0.9
 
       - name: Install tejolote
-        uses: kubernetes-sigs/release-actions/setup-tejolote@a69972745f85aab4ba5d6c681e2a0e7f73eaff2b # v0.3.0
+        uses: kubernetes-sigs/release-actions/setup-tejolote@a30d93cf2aa029e1e4c8a6c79f766aebf429fddb # v0.3.1
 
       - name: Install bom
-        uses: kubernetes-sigs/release-actions/setup-bom@a69972745f85aab4ba5d6c681e2a0e7f73eaff2b # v0.3.0
+        uses: kubernetes-sigs/release-actions/setup-bom@a30d93cf2aa029e1e4c8a6c79f766aebf429fddb # v0.3.1
 
       - name: Set tag output
         id: tag
