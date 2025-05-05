@@ -287,7 +287,7 @@ func (di *defaultImplementation) VerifyAsset(
 	)
 
 	// Create the collector
-	collector, err := release.New(
+	clctr, err := release.New(
 		release.WithRepo(asset.GetRepoURL()),
 		release.WithTag(asset.GetVersion()),
 	)
@@ -296,7 +296,7 @@ func (di *defaultImplementation) VerifyAsset(
 	}
 
 	// Create the new ampel verifier
-	vrfr, err := verifier.New(verifier.WithCollector(collector))
+	vrfr, err := verifier.New(verifier.WithCollector(clctr))
 	if err != nil {
 		return false, nil, fmt.Errorf("creating new AMPEL verifier: %w", err)
 	}
@@ -379,11 +379,11 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 		},
 	)
 
-	path := filepath.Join(opts.DownloadPath, filename)
-	if util.Exists(path) {
-		return "", fmt.Errorf("file %q already exists, will not overwrite", path)
+	p := filepath.Join(opts.DownloadPath, filename)
+	if util.Exists(p) {
+		return "", fmt.Errorf("file %q already exists, will not overwrite", p)
 	}
-	f, err := os.Create(path) //nolint:gosec
+	f, err := os.Create(p) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("downloading file: %w", err)
 	}
@@ -392,5 +392,5 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 		return "", err
 	}
 
-	return path, nil
+	return p, nil
 }
