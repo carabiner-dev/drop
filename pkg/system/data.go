@@ -96,6 +96,23 @@ const (
 	Archive7z  = "7z"
 )
 
+// Operating system families
+const (
+	OSFamilyAlpine     = "alpine"
+	OSFamilyAlma       = "alma"
+	OSFamilyArch       = "arch"
+	OSFamilyDebian     = "debian"
+	OSFamilyDistroless = "distroless"
+	OSFamilyFedora     = "fedora"
+	OSFamilyRocky      = "rocky"
+	OSFamilyUbuntu     = "ubuntu"
+	OSFamilyRHEL       = "rhel"
+	OSFamilyWolfi      = "wolfi"
+
+	OSFamilyMacOS   = "macos"
+	OSFamilyWindows = "windows"
+)
+
 type ExtensionList map[string][]string
 
 func (el *ExtensionList) GetTypeFromFile(filename string) string {
