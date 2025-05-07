@@ -85,6 +85,8 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 		// Found. Now check if it has variants for the local OS
 		if installable, ok := asset.(*github.Installable); ok {
 			var wantedVariant github.AssetDataProvider
+			sysPackageFormat := system.GetPreferredPackage(system.GetSystemOSFamily())
+
 			for _, variant := range installable.Variants {
 				// If the os or arch is not what we want, ignore it.
 				if variant.Os != opts.OS || variant.Arch != opts.Arch {
@@ -124,6 +126,12 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 				// If we are not looking for a specific type, and its a
 				// binary, return it immediately
 				if packageType == "" && archiveType == "" {
+					return variant, nil
+				}
+
+				// If we are looking for a package, check if the asset matches
+				// the system format:
+				if opts.DownloadType == "p" && packageType == sysPackageFormat {
 					return variant, nil
 				}
 
@@ -371,7 +379,7 @@ func (di *defaultImplementation) DownloadAssetToFile(opts *GetOptions, asset git
 		}
 	}
 
-	// Send the evento to the notifier
+	// Send the event to the notifier
 	opts.Listener.HandleEvent(
 		&Event{
 			Object: EventObjectAsset, Verb: EventVerbGet,
