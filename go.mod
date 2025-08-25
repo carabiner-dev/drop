@@ -10,7 +10,7 @@ require (
 	github.com/rodaine/table v1.3.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	golang.org/x/oauth2 v0.30.0
 	sigs.k8s.io/release-utils v0.11.1
 )
