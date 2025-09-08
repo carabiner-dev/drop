@@ -9,7 +9,7 @@ require (
 	github.com/google/go-github/v60 v60.0.0
 	github.com/rodaine/table v1.3.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/oauth2 v0.31.0
 	sigs.k8s.io/release-utils v0.11.1
@@ -69,7 +69,7 @@ require (
 	github.com/sigstore/sigstore-go v0.7.2 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/spdx/tools-golang v0.5.5 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
