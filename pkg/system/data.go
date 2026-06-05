@@ -94,6 +94,9 @@ const (
 	ArchiveL7  = "l7"
 	ArchiveTgz = "tgz"
 	Archive7z  = "7z"
+
+	// extTarGz is the long extension of gzipped tarballs
+	extTarGz = "tar.gz"
 )
 
 // Operating system families
@@ -159,13 +162,13 @@ var PackageExtensions = ExtensionList{
 }
 
 var ArchiveExtensions = ExtensionList{
-	ArchiveZip: {"zip"},
-	ArchiveTar: {"tar"},
-	ArchiveBz2: {"bz2", "bz"},
-	ArchiveGz:  {"gz"},
-	ArchiveXz:  {"xz"},
-	ArchiveRar: {"rar"},
-	ArchiveL7:  {"l7"},
-	ArchiveTgz: {"tar.gz", "tgz"},
-	Archive7z:  {"7z"},
+	ArchiveZip: {ArchiveZip},
+	ArchiveTar: {ArchiveTar},
+	ArchiveBz2: {ArchiveBz2, "bz"},
+	ArchiveGz:  {ArchiveGz},
+	ArchiveXz:  {ArchiveXz},
+	ArchiveRar: {ArchiveRar},
+	ArchiveL7:  {ArchiveL7},
+	ArchiveTgz: {extTarGz, ArchiveTgz},
+	Archive7z:  {Archive7z},
 }

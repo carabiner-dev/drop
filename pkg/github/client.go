@@ -33,11 +33,14 @@ func New() (*Client, error) {
 	client := gogithub.NewClient(httpClient)
 	return &Client{
 		Options: Options{
-			Host: "github.com",
+			Host: DefaultHost,
 		},
 		client: client,
 	}, nil
 }
+
+// DefaultHost is the hostname of the public GitHub instance
+const DefaultHost = "github.com"
 
 type Options struct {
 	Host string
@@ -54,7 +57,7 @@ func RepoURLFromString(str string) (string, error) {
 		return "", fmt.Errorf("repo string empty")
 	}
 	// String is a github URL without scheme
-	if strings.HasPrefix(str, "github.com") {
+	if strings.HasPrefix(str, DefaultHost) {
 		str = "https://" + str
 	}
 
@@ -65,7 +68,7 @@ func RepoURLFromString(str string) (string, error) {
 
 	host := u.Hostname()
 	if host == "" {
-		host = "github.com"
+		host = DefaultHost
 	}
 	parts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
 	if len(parts) < 2 {
@@ -87,7 +90,7 @@ func RepoURLFromString(str string) (string, error) {
 }
 
 func NewAssetFromURLString(urlString string) *Asset {
-	if strings.HasPrefix(urlString, "github.com") {
+	if strings.HasPrefix(urlString, DefaultHost) {
 		urlString = "https://" + urlString
 	}
 	p, err := url.Parse(urlString)
@@ -172,7 +175,7 @@ func (c *Client) ListReleaseAssets(rdata ReleaseDataProvider) ([]AssetDataProvid
 }
 
 func buildReleaseAssets(src ReleaseDataProvider, release *gogithub.RepositoryRelease) []AssetDataProvider {
-	ret := []AssetDataProvider{}
+	ret := make([]AssetDataProvider, 0, len(release.Assets))
 	for _, gha := range release.Assets {
 		ret = append(ret, newAssetFromGitHubAsset(src, gha))
 	}

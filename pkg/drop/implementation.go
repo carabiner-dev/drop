@@ -13,17 +13,17 @@ import (
 	"strings"
 	"time"
 
-	ampel "github.com/carabiner-dev/ampel/pkg/api/v1"
-	"github.com/carabiner-dev/ampel/pkg/attestation"
-	"github.com/carabiner-dev/ampel/pkg/collector"
-	"github.com/carabiner-dev/ampel/pkg/policy"
-	gitcollector "github.com/carabiner-dev/ampel/pkg/repository/git"
-	"github.com/carabiner-dev/ampel/pkg/repository/release"
 	"github.com/carabiner-dev/ampel/pkg/verifier"
+	"github.com/carabiner-dev/attestation"
+	"github.com/carabiner-dev/collector"
+	gitcollector "github.com/carabiner-dev/collector/repository/git"
+	"github.com/carabiner-dev/collector/repository/release"
 	"github.com/carabiner-dev/hasher"
+	"github.com/carabiner-dev/policy"
+	papi "github.com/carabiner-dev/policy/api/v1"
 	"github.com/sirupsen/logrus"
+	util "sigs.k8s.io/release-utils/helpers"
 	"sigs.k8s.io/release-utils/http"
-	"sigs.k8s.io/release-utils/util"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
@@ -39,7 +39,7 @@ type installerImplementation interface {
 	ChooseAsset(*GetOptions, *github.Client, github.AssetDataProvider) (github.AssetDataProvider, error)
 
 	// Fetch policies uses a provider to look for policies in a structured data source.
-	FetchPolicies(*Options, github.AssetDataProvider) ([]*ampel.PolicySet, error)
+	FetchPolicies(*Options, github.AssetDataProvider) ([]*papi.PolicySet, error)
 
 	// Download asset gets a file from a github release and makes it available in a directory
 	DownloadAssetToTmp(*GetOptions, github.AssetDataProvider) (string, error)
@@ -51,7 +51,7 @@ type installerImplementation interface {
 	DownloadAssetToFile(*GetOptions, github.AssetDataProvider) (string, error)
 
 	// VerifyAsset verifies that a file complioes with a set of policies
-	VerifyAsset(*Options, []*ampel.PolicySet, github.AssetDataProvider, string) (bool, *ampel.ResultSet, error)
+	VerifyAsset(*Options, []*papi.PolicySet, github.AssetDataProvider, string) (bool, *papi.ResultSet, error)
 
 	// InstallAsset invokes the system mechanism to set up the downloaded artifact
 	// in the local machine.
@@ -176,7 +176,7 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 }
 
 // FetchPolicies reads the artifact policies from the specified repo
-func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*ampel.PolicySet, error) {
+func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*papi.PolicySet, error) {
 	repoBaseUrl := fmt.Sprintf(
 		"https://%s/%s/%s", asset.GetHost(), asset.GetOrg(), defaultPolicyRepo,
 	)
@@ -224,13 +224,13 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		// This error also returns if the requires auth
 		if strings.Contains(err.Error(), "Repository not found") {
 			logrus.Debugf("policy repository does not exist")
-			return []*ampel.PolicySet{}, nil
+			return []*papi.PolicySet{}, nil
 		}
 
 		// 2. The policy repo exists, but the specified path does not exist.
 		if strings.Contains(err.Error(), "file does not exist") {
 			logrus.Debug("policy repository has no policies for repo")
-			return []*ampel.PolicySet{}, nil
+			return []*papi.PolicySet{}, nil
 		}
 
 		// Otherwise it is a true error
@@ -238,7 +238,7 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 	}
 
 	// Parse the policies from the attested data
-	ret := []*ampel.PolicySet{}
+	ret := []*papi.PolicySet{}
 	parser := policy.NewParser()
 	for _, att := range attestations {
 		// Since these attestations were already parsed, these two
@@ -251,7 +251,7 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 			logrus.Error("policy attestation has no predicate")
 			continue
 		}
-		pset, err := parser.ParseSet(att.GetStatement().GetPredicate().GetData())
+		pset, err := parser.ParsePolicySet(att.GetStatement().GetPredicate().GetData())
 		if err != nil {
 			logrus.Error("parsing policy set: %w", err)
 			continue
@@ -285,8 +285,8 @@ func (di *defaultImplementation) DownloadAssetToTmp(opts *GetOptions, asset gith
 }
 
 func (di *defaultImplementation) VerifyAsset(
-	opts *Options, policies []*ampel.PolicySet, asset github.AssetDataProvider, filePath string,
-) (bool, *ampel.ResultSet, error) {
+	opts *Options, policies []*papi.PolicySet, asset github.AssetDataProvider, filePath string,
+) (bool, *papi.ResultSet, error) {
 	// Create a verifier, for now we will only support attestations
 	// published along the artifact (as GitHub assets):
 
@@ -326,10 +326,15 @@ func (di *defaultImplementation) VerifyAsset(
 		return false, nil, fmt.Errorf("error running artifact verification: %w", err)
 	}
 
+	resultSet, ok := results.(*papi.ResultSet)
+	if !ok {
+		return false, nil, fmt.Errorf("unexpected results type %T returned from verifier", results)
+	}
+
 	// Compute the evaluation status
 	passed := true
-	for _, r := range results.GetResults() {
-		if r.GetStatus() != ampel.StatusPASS {
+	for _, r := range resultSet.GetResults() {
+		if r.GetStatus() != papi.StatusPASS {
 			passed = false
 		}
 	}
@@ -346,7 +351,7 @@ func (di *defaultImplementation) VerifyAsset(
 		},
 	)
 
-	return passed, results, nil
+	return passed, resultSet, nil
 }
 
 func (di *defaultImplementation) InstallAsset(*Options, *system.Info, string) error {

@@ -77,7 +77,7 @@ type LabelList []string
 
 func (ll *LabelList) ToRegex() *regexp.Regexp {
 	list := slices.Clone(*ll)
-	chrs := []string{}
+	chrs := make([]string, 0, len(FilenameSeparators))
 	for c := range FilenameSeparators {
 		chrs = append(chrs, c)
 	}

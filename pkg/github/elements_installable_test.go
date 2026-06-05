@@ -69,15 +69,16 @@ func TestGetOsFromFilename(t *testing.T) {
 
 func TestTrimSeparatorSuffix(t *testing.T) {
 	t.Parallel()
+	const binaryName = "binary"
 	for _, tc := range []struct {
 		name     string
 		sut      string
 		expected string
 	}{
-		{"nochange", "binary", "binary"},
-		{"dot", "binary.", "binary"},
-		{"underscore", "binary_", "binary"},
-		{"dash", "binary-", "binary"},
+		{"nochange", binaryName, binaryName},
+		{"dot", "binary.", binaryName},
+		{"underscore", "binary_", binaryName},
+		{"dash", "binary-", binaryName},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

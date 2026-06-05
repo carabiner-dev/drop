@@ -10,7 +10,7 @@ import (
 	"slices"
 
 	"github.com/spf13/cobra"
-	"sigs.k8s.io/release-utils/util"
+	util "sigs.k8s.io/release-utils/helpers"
 
 	"github.com/carabiner-dev/drop/internal/notifier"
 	"github.com/carabiner-dev/drop/pkg/drop"
