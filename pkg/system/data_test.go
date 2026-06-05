@@ -16,12 +16,12 @@ func TestGetTypeFromFile(t *testing.T) {
 		sut    string
 		expect string
 	}{
-		{"zip", "file.zip", "zip"},
-		{"tar.gz", "file.tar.gz", "tgz"},
-		{"tgz", "file.tgz", "tgz"},
-		{"gz", "file.other.gz", "gz"},
-		{"bzip-variant-1", "file.other.bz", "bz2"},
-		{"bzip-variant-2", "file.other.bz2", "bz2"},
+		{"zip", "file.zip", ArchiveZip},
+		{"tar.gz", "file.tar.gz", ArchiveTgz},
+		{"tgz", "file.tgz", ArchiveTgz},
+		{"gz", "file.other.gz", ArchiveGz},
+		{"bzip-variant-1", "file.other.bz", ArchiveBz2},
+		{"bzip-variant-2", "file.other.bz2", ArchiveBz2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -38,12 +38,12 @@ func TestGetTypeExtensionFromFile(t *testing.T) {
 		expectType string
 		expectExt  string
 	}{
-		{"zip", "file.zip", "zip", "zip"},
-		{"tar.gz", "file.tar.gz", "tgz", "tar.gz"},
-		{"tgz", "file.tgz", "tgz", "tgz"},
-		{"gz", "file.other.gz", "gz", "gz"},
-		{"bzip-variant-1", "file.other.bz", "bz2", "bz"},
-		{"bzip-variant-2", "file.other.bz2", "bz2", "bz2"},
+		{"zip", "file.zip", ArchiveZip, ArchiveZip},
+		{"tar.gz", "file.tar.gz", ArchiveTgz, extTarGz},
+		{"tgz", "file.tgz", ArchiveTgz, ArchiveTgz},
+		{"gz", "file.other.gz", ArchiveGz, ArchiveGz},
+		{"bzip-variant-1", "file.other.bz", ArchiveBz2, "bz"},
+		{"bzip-variant-2", "file.other.bz2", ArchiveBz2, ArchiveBz2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

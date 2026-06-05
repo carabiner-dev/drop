@@ -40,12 +40,12 @@ func columnTable(w io.Writer, numCols int, data []string) {
 	tbl.WithWriter(w)
 
 	rows := [][]string{}
-	cols := []string{}
+	cols := make([]string, 0, numCols)
 
 	for _, cell := range data {
 		if len(cols) == numCols {
 			rows = append(rows, cols)
-			cols = []string{}
+			cols = make([]string, 0, numCols)
 		}
 		cols = append(cols, cell)
 	}
@@ -118,7 +118,7 @@ func (ls *LsTTY) RenderReleaseInstallables(w io.Writer, release github.ReleaseDa
 
 		tbl.Print()
 	} else {
-		data := []string{}
+		data := make([]string, 0, len(assets))
 		for _, a := range assets {
 			data = append(data, a.GetName())
 		}
@@ -147,7 +147,7 @@ func (ls *LsTTY) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProv
 
 		tbl.Print()
 	} else {
-		data := []string{}
+		data := make([]string, 0, len(assets))
 		for _, a := range assets {
 			data = append(data, a.GetName())
 		}
@@ -176,7 +176,7 @@ func (ls *LsTTY) RenderRepoReleases(w io.Writer, repo github.RepoDataProvider, r
 
 		tbl.Print()
 	} else {
-		data := []string{}
+		data := make([]string, 0, len(releases))
 		for _, r := range releases {
 			data = append(data, r.GetVersion())
 		}
