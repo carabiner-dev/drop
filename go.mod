@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/carabiner-dev/ampel v1.2.2-0.20260605075602-1e1a6864fc8f
 	github.com/carabiner-dev/attestation v0.2.1
-	github.com/carabiner-dev/collector v0.3.6
+	github.com/carabiner-dev/collector v0.3.7
 	github.com/carabiner-dev/hasher v0.2.4
 	github.com/carabiner-dev/policy v0.5.1-0.20260428221018-836cdae656c0
 	github.com/fatih/color v1.19.0
@@ -40,7 +40,7 @@ require (
 	github.com/carabiner-dev/osv v0.0.0-20250124012120-b8ce4531cd92 // indirect
 	github.com/carabiner-dev/predicates v0.5.0 // indirect
 	github.com/carabiner-dev/sbomfs v0.1.0 // indirect
-	github.com/carabiner-dev/signer v0.5.0 // indirect
+	github.com/carabiner-dev/signer v0.5.1 // indirect
 	github.com/carabiner-dev/vcslocator v0.4.4 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
