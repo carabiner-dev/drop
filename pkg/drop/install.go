@@ -5,6 +5,8 @@ package drop
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/inventory"
 	"github.com/carabiner-dev/drop/pkg/system"
 )
 
@@ -489,6 +492,70 @@ func (di *defaultImplementation) installBinary(
 			"path":      target,
 		},
 	})
+	return nil
+}
+
+// fileDigest returns the hex-encoded sha256 hash of a file.
+func fileDigest(path string) (string, error) {
+	f, err := os.Open(path) //nolint:gosec
+	if err != nil {
+		return "", fmt.Errorf("opening file to hash: %w", err)
+	}
+	defer f.Close() //nolint:errcheck
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", fmt.Errorf("hashing file: %w", err)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// RecordInstall registers a successful installation in the user's inventory
+// database so it can later be verified, updated or removed.
+func (di *defaultImplementation) RecordInstall(
+	opts *GetOptions, artifact *InstallArtifact, downloadPath string, verified bool,
+) error {
+	var inv *inventory.Inventory
+	var err error
+	if di.inventoryPath == "" {
+		inv, err = inventory.Open()
+	} else {
+		inv, err = inventory.OpenFile(di.inventoryPath)
+	}
+	if err != nil {
+		return fmt.Errorf("opening install inventory: %w", err)
+	}
+
+	// Hash the verified artifact. For binaries this is the same content
+	// that landed in the binaries directory.
+	digest, err := fileDigest(downloadPath)
+	if err != nil {
+		return err
+	}
+
+	record := &inventory.Record{
+		Host:     artifact.Asset.GetHost(),
+		Org:      artifact.Asset.GetOrg(),
+		Repo:     artifact.Asset.GetRepo(),
+		Name:     strings.TrimSuffix(artifact.InstallName, exeSuffix),
+		Version:  artifact.Asset.GetVersion(),
+		Kind:     string(artifact.Kind),
+		Asset:    artifact.Asset.GetName(),
+		Digest:   map[string]string{"sha256": digest},
+		Verified: verified,
+	}
+
+	switch artifact.Kind {
+	case ArtifactBinary:
+		record.BinPath = filepath.Join(opts.BinDir, artifact.InstallName)
+	case ArtifactPackage:
+		record.PackageFormat = artifact.PackageFormat
+	}
+
+	inv.Add(record)
+	if err := inv.Save(); err != nil {
+		return fmt.Errorf("saving install inventory: %w", err)
+	}
 	return nil
 }
 
