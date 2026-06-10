@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -166,6 +167,13 @@ func TestDecideArtifact(t *testing.T) {
 	}
 }
 
+func mustAbs(t *testing.T, path string) string {
+	t.Helper()
+	abs, err := filepath.Abs(path)
+	require.NoError(t, err)
+	return abs
+}
+
 func TestBuildPackageInstallCmd(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -197,14 +205,16 @@ func TestBuildPackageInstallCmd(t *testing.T) {
 			paths: map[string]bool{}, expectErr: true,
 		},
 		{
+			// deb paths go through filepath.Abs (apt requires a path to
+			// install local files), absolutize the expectation too
 			name: "deb-apt", format: "deb", path: "/tmp/d/drop.deb", sudo: true,
 			paths:  map[string]bool{"apt": true, "sudo": true},
-			expect: []string{"sudo", "apt", "install", "-y", "/tmp/d/drop.deb"},
+			expect: []string{"sudo", "apt", "install", "-y", mustAbs(t, "/tmp/d/drop.deb")},
 		},
 		{
 			name: "deb-dpkg-fallback", format: "deb", path: "/tmp/d/drop.deb", sudo: false,
 			paths:  map[string]bool{"dpkg": true},
-			expect: []string{"dpkg", "-i", "/tmp/d/drop.deb"},
+			expect: []string{"dpkg", "-i", mustAbs(t, "/tmp/d/drop.deb")},
 		},
 		{
 			name: "apk", format: "apk", path: "/tmp/d/drop.apk", sudo: false,
@@ -288,12 +298,18 @@ func TestInstallAssetBinary(t *testing.T) {
 		target := filepath.Join(binDir, "drop")
 		st, err := os.Stat(target)
 		require.NoError(t, err)
-		require.Equal(t, os.FileMode(0o755), st.Mode().Perm())
+		if runtime.GOOS != "windows" {
+			// windows does not preserve unix permission bits
+			require.Equal(t, os.FileMode(0o755), st.Mode().Perm())
+		}
 		require.Empty(t, runner.run, "no command should run when the dir is writable")
 	})
 
 	t.Run("non-writable-dir-uses-sudo", func(t *testing.T) {
 		t.Parallel()
+		if runtime.GOOS == "windows" {
+			t.Skip("directory permissions are not enforced on windows")
+		}
 		if os.Geteuid() == 0 {
 			t.Skip("running as root, no dir is non-writable")
 		}
@@ -313,6 +329,9 @@ func TestInstallAssetBinary(t *testing.T) {
 
 	t.Run("non-writable-dir-no-sudo", func(t *testing.T) {
 		t.Parallel()
+		if runtime.GOOS == "windows" {
+			t.Skip("directory permissions are not enforced on windows")
+		}
 		if os.Geteuid() == 0 {
 			t.Skip("running as root, no dir is non-writable")
 		}
