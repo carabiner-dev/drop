@@ -15,11 +15,14 @@ import (
 
 var defaultOptions = Options{}
 
+// The default platform is normalized to the canonical OS/arch labels so it
+// matches the values parsed from the release asset filenames.
 var defaultGetOptions = GetOptions{
 	DownloadPath:    ".",
-	OS:              runtime.GOOS,
-	Arch:            runtime.GOARCH,
+	OS:              system.GetOS(runtime.GOOS),
+	Arch:            system.GetArch(runtime.GOARCH),
 	TransferTimeOut: 900,
+	BinDir:          "/usr/local/bin",
 }
 
 type Options struct {
@@ -56,6 +59,14 @@ type GetOptions struct {
 
 	// DownloadType is "a","b" or "p" and determines which download we do
 	DownloadType string
+
+	// BinDir is the directory where binaries are installed by the install
+	// subcommand.
+	BinDir string
+
+	// Selector resolves the choice between a binary and a package when a
+	// release offers both for the local system.
+	Selector ArtifactSelector
 }
 
 type (
@@ -123,6 +134,23 @@ func WithTransferTimeOut(seconds int) FuncGetOption {
 func WithVerifyDownloads(verify bool) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.SkipVerification = !verify
+		return nil
+	}
+}
+
+func WithBinDir(dir string) FuncGetOption {
+	return func(o *GetOptions) error {
+		if dir == "" {
+			return errors.New("binary directory cannot be empty")
+		}
+		o.BinDir = dir
+		return nil
+	}
+}
+
+func WithArtifactSelector(fn ArtifactSelector) FuncGetOption {
+	return func(o *GetOptions) error {
+		o.Selector = fn
 		return nil
 	}
 }

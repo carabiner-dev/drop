@@ -6,7 +6,6 @@ package system
 import (
 	"bufio"
 	"cmp"
-	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -180,7 +179,6 @@ func parseOSReleaseForFamily(r io.Reader) string {
 		case "wolfi":
 			return OSFamilyWolfi
 		default:
-			fmt.Println("A A A A A " + v)
 			return ""
 		}
 	}

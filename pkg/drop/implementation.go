@@ -38,6 +38,10 @@ type installerImplementation interface {
 	// and install in the system.
 	ChooseAsset(*GetOptions, *github.Client, github.AssetDataProvider) (github.AssetDataProvider, error)
 
+	// SelectInstallArtifact decides which release artifact (binary or system
+	// package) will be installed on the local system.
+	SelectInstallArtifact(*GetOptions, *github.Client, *system.Info, github.AssetDataProvider) (*InstallArtifact, error)
+
 	// Fetch policies uses a provider to look for policies in a structured data source.
 	FetchPolicies(*Options, github.AssetDataProvider) ([]*papi.PolicySet, error)
 
@@ -55,13 +59,27 @@ type installerImplementation interface {
 
 	// InstallAsset invokes the system mechanism to set up the downloaded artifact
 	// in the local machine.
-	InstallAsset(*Options, *system.Info, string) error
+	InstallAsset(*GetOptions, *system.Info, *InstallArtifact, string) error
 }
 
-type defaultImplementation struct{}
+type defaultImplementation struct {
+	runner commandRunner
+}
 
 func (di *defaultImplementation) GetSystemInfo(*Options) (*system.Info, error) {
 	return system.GetInfo()
+}
+
+// findInstallable looks in a list of release assets for the installable (or
+// plain asset) matching the spec name, defaulting to the repository name.
+func findInstallable(assets []github.AssetDataProvider, spec github.AssetDataProvider) github.AssetDataProvider {
+	name := specName(spec)
+	for _, asset := range assets {
+		if asset.GetName() == name {
+			return asset
+		}
+	}
+	return nil
 }
 
 // ChooseAsset selects an installable matching the spec name and local platform
@@ -71,17 +89,7 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 		return nil, fmt.Errorf("fetching release assets: %w", err)
 	}
 
-	// We look a for an installable with the same name as the repo
-	name := spec.GetRepo()
-	// .. unless the asset spec has a name defined
-	if spec.GetName() != "" {
-		name = spec.GetName()
-	}
-
-	for _, asset := range assets {
-		if asset.GetName() != name {
-			continue
-		}
+	if asset := findInstallable(assets, spec); asset != nil {
 		// Found. Now check if it has variants for the local OS
 		if installable, ok := asset.(*github.Installable); ok {
 			var wantedVariant github.AssetDataProvider
@@ -159,6 +167,7 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 
 	// Before we go, now check all variants for a matching filename in case
 	// the user specified the exact name in the URL spec:
+	name := specName(spec)
 	for _, asset := range assets {
 		installable, ok := asset.(*github.Installable)
 		if !ok {
@@ -269,19 +278,41 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 	return ret, nil
 }
 
-// DownloadAssetToTmp fetches the asset to a temporary location
+// DownloadAssetToTmp fetches the asset to a temporary directory, keeping its
+// filename (package managers require local files to have proper extensions).
 func (di *defaultImplementation) DownloadAssetToTmp(opts *GetOptions, asset github.AssetDataProvider) (string, error) {
-	tmpfile, err := os.CreateTemp("", "drop-download-")
+	dir, err := os.MkdirTemp("", "drop-install-")
 	if err != nil {
+		return "", fmt.Errorf("creating temporary directory: %w", err)
+	}
+
+	filename := opts.computedFilename
+	if filename == "" {
+		filename = asset.GetName()
+	}
+
+	// Send the event to the notifier
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectAsset, Verb: EventVerbGet,
+			Data: map[string]string{"filename": filename, "size": fmt.Sprintf("%d", asset.GetSize())},
+		},
+	)
+
+	filePath := filepath.Join(dir, filename)
+	tmpfile, err := os.Create(filePath) //nolint:gosec
+	if err != nil {
+		_ = os.RemoveAll(dir) //nolint:errcheck
 		return "", fmt.Errorf("creating temporary file: %w", err)
 	}
 	defer tmpfile.Close() //nolint:errcheck
 
 	// Get the data
 	if err := di.DownloadAssetToWriter(opts, tmpfile, asset); err != nil {
+		_ = os.RemoveAll(dir) //nolint:errcheck
 		return "", err
 	}
-	return tmpfile.Name(), nil
+	return filePath, nil
 }
 
 func (di *defaultImplementation) VerifyAsset(
@@ -352,10 +383,6 @@ func (di *defaultImplementation) VerifyAsset(
 	)
 
 	return passed, resultSet, nil
-}
-
-func (di *defaultImplementation) InstallAsset(*Options, *system.Info, string) error {
-	return nil
 }
 
 // DownloadAssetToWriter downloads the asset data to the supplied writer
