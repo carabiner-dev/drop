@@ -101,11 +101,18 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 		// Found. Now check if it has variants for the local OS
 		if installable, ok := asset.(*github.Installable); ok {
 			var wantedVariant github.AssetDataProvider
+			var binaryVariant *github.Asset
 			sysPackageFormat := system.GetPreferredPackage(system.GetSystemOSFamily())
 
 			for _, variant := range installable.Variants {
 				// If the os or arch is not what we want, ignore it.
 				if variant.Os != opts.OS || variant.Arch != opts.Arch {
+					continue
+				}
+
+				// Signatures, SBOMs and other metadata files published
+				// along the artifacts are never chosen automatically.
+				if isMetadataFile(variant.GetName()) {
 					continue
 				}
 
@@ -128,26 +135,20 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 					continue
 				}
 
-				// For expected binaries, we use the installer name
+				// Binaries win over packages and archives, but keep
+				// looking in case the release ships several flavors for
+				// the platform: the canonical one (shortest name) wins.
 				if packageType == "" && archiveType == "" {
-					opts.computedFilename = installable.GetName()
-					if variant.Os == system.OSWindows {
-						opts.computedFilename += ".exe"
+					if binaryVariant == nil || len(variant.GetName()) < len(binaryVariant.GetName()) {
+						binaryVariant = variant
 					}
-				} else {
-					// When handling packages or archives, keep the same name
-					opts.computedFilename = variant.GetName()
-				}
-
-				// If we are not looking for a specific type, and its a
-				// binary, return it immediately
-				if packageType == "" && archiveType == "" {
-					return variant, nil
+					continue
 				}
 
 				// If we are looking for a package, check if the asset matches
 				// the system format:
 				if opts.DownloadType == "p" && packageType == sysPackageFormat {
+					opts.computedFilename = variant.GetName()
 					return variant, nil
 				}
 
@@ -157,6 +158,15 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 				} else if archiveType != "" {
 					wantedVariant = variant
 				}
+			}
+
+			// Binaries are downloaded under the installable name
+			if binaryVariant != nil {
+				opts.computedFilename = installable.GetName()
+				if binaryVariant.Os == system.OSWindows {
+					opts.computedFilename += ".exe"
+				}
+				return binaryVariant, nil
 			}
 
 			if wantedVariant != nil {

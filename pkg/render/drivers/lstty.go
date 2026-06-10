@@ -50,6 +50,11 @@ func columnTable(w io.Writer, numCols int, data []string) {
 		cols = append(cols, cell)
 	}
 	if len(cols) != 0 {
+		// Pad the last row, the table formats every row to the full
+		// column count and renders missing cells as %!s(MISSING)
+		for len(cols) < numCols {
+			cols = append(cols, "")
+		}
 		rows = append(rows, cols)
 	}
 	tbl.SetRows(rows).Print()

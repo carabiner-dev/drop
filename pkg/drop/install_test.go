@@ -503,3 +503,50 @@ func TestRecordInstall(t *testing.T) {
 		})
 	}
 }
+
+// TestClassifyCosignStyleRelease locks in that releases shipping multiple
+// binary flavors plus metadata files (sigs, SBOMs, certs) select the
+// canonical binary and install it under the computed installable name.
+func TestClassifyCosignStyleRelease(t *testing.T) {
+	t.Parallel()
+	inst := &github.Installable{
+		Name: "cosign",
+		Variants: []*github.Asset{
+			{Name: "cosign-linux-amd64", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "cosign-linux-amd64-keyless.sig", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "cosign-linux-amd64.sig", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "cosign-linux-pivkey-pkcs11key-amd64", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "cosign-linux-pivkey-pkcs11key-amd64_3.1.1_linux_amd64.sbom.json", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "cosign-2.6.0-1.x86_64.rpm", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "cosign-2.6.0-1.x86_64.rpm-keyless.pem", Os: system.OSLinux, Arch: system.ArchAMD64},
+		},
+	}
+
+	cands := classifyInstallCandidates(inst, system.OSLinux, system.ArchAMD64, system.PackageRPM)
+
+	require.NotNil(t, cands.Binary)
+	require.Equal(t, "cosign-linux-amd64", cands.Binary.Asset.GetName(),
+		"the canonical binary must win over flavored binaries and metadata files")
+	require.Equal(t, "cosign", cands.Binary.InstallName,
+		"binaries must install under the computed installable name")
+	require.NotNil(t, cands.Package)
+	require.Equal(t, "cosign-2.6.0-1.x86_64.rpm", cands.Package.Asset.GetName())
+}
+
+func TestIsMetadataFile(t *testing.T) {
+	t.Parallel()
+	for file, expect := range map[string]bool{
+		"cosign-linux-amd64":                 false,
+		"cosign-windows-amd64.exe":           false,
+		"drop-1.0.0-1.x86_64.rpm":            false,
+		"cosign-linux-amd64.sig":             true,
+		"cosign-linux-amd64-keyless.SIG":     true,
+		"cosign_3.1.1_linux_amd64.sbom.json": true,
+		"checksums.txt":                      true,
+		"release.pem":                        true,
+		"slsa.intoto.jsonl":                  true,
+		"artifact.sigstore":                  true,
+	} {
+		require.Equal(t, expect, isMetadataFile(file), file)
+	}
+}
