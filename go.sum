@@ -94,8 +94,8 @@ github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/bradleyjkemp/cupaloy/v2 v2.8.0 h1:any4BmKE+jGIaMpnU8YgH/I2LPiLBufr6oMMlVBbn9M=
 github.com/bradleyjkemp/cupaloy/v2 v2.8.0/go.mod h1:bm7JXdkRd4BHJk9HpwqAI8BoAY1lps46Enkdqw6aRX0=
-github.com/carabiner-dev/ampel v1.2.2-0.20260605075602-1e1a6864fc8f h1:u49YkDS0T0BbE9n+cFdZ2qggIZLGSsNfgPpmWMFKuUA=
-github.com/carabiner-dev/ampel v1.2.2-0.20260605075602-1e1a6864fc8f/go.mod h1:yV1m2XzL9UHgkMqosqTlK+L/SOW9FTP6vH0r1PBA9Ks=
+github.com/carabiner-dev/ampel v1.3.0 h1:xeG1IM3eA06qKuHK7DeuyFrTQrWKwasycgrAEbZZpVk=
+github.com/carabiner-dev/ampel v1.3.0/go.mod h1:o2rxk7lde69ZVDcJvDCgDOTaogGbVvH8liBL9SQ7sOs=
 github.com/carabiner-dev/attestation v0.2.1 h1:VhjV5YlO9TsW50Sr/Zd54bdbZhhDAqgxC3kB9z1I+3Q=
 github.com/carabiner-dev/attestation v0.2.1/go.mod h1:O84vF84RZG3pJO/6BYrPs718bZviHF5DKajP1HsrDpw=
 github.com/carabiner-dev/collector v0.3.7 h1:K1ChCAhW3Guy8JLosTh+5ndtnyfwPXohAm5D12LgfIk=
