@@ -8,14 +8,16 @@ import (
 )
 
 type Info struct {
-	Os   string
-	Arch string
+	Os     string
+	Arch   string
+	Family string
 }
 
 // GetInfo returns information about the running system
 func GetInfo() (*Info, error) {
 	return &Info{
-		Os:   runtime.GOOS,
-		Arch: runtime.GOARCH,
+		Os:     runtime.GOOS,
+		Arch:   runtime.GOARCH,
+		Family: GetSystemOSFamily(),
 	}, nil
 }
