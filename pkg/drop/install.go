@@ -79,6 +79,26 @@ type installCandidates struct {
 	HasOtherPkg bool
 }
 
+// metadataSuffixes are extensions of files published along release artifacts
+// (signatures, SBOMs, certificates, checksums...) that are never installable
+// even when their filenames carry platform markers.
+var metadataSuffixes = []string{
+	".json", ".jsonl", ".sig", ".pem", ".cert", ".crt", ".asc", ".pub",
+	".txt", ".md", ".sbom", ".bundle", ".sigstore", ".sha256", ".sha512",
+}
+
+// isMetadataFile returns true for release files that hold artifact metadata
+// instead of an installable artifact.
+func isMetadataFile(name string) bool {
+	name = strings.ToLower(name)
+	for _, suffix := range metadataSuffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 // classifyInstallCandidates inspects an installable's variants for the given
 // platform and classifies them into a binary candidate and a package candidate
 // matching the system's package format.
@@ -96,6 +116,17 @@ func classifyInstallCandidates(inst *github.Installable, osName, arch, pkgFormat
 		case archiveType != "":
 			cands.HasArchives = true
 		case packageType == "":
+			// Signatures, SBOMs and other metadata files also carry
+			// platform markers in their names but are not installable.
+			if isMetadataFile(variant.GetName()) {
+				continue
+			}
+			// When a release ships more than one binary flavor for the
+			// platform, prefer the canonical one: the shortest filename
+			// (e.g. cosign-linux-amd64 over cosign-linux-pivkey-amd64).
+			if cands.Binary != nil && len(cands.Binary.Asset.GetName()) <= len(variant.GetName()) {
+				continue
+			}
 			name := inst.GetName()
 			if variant.Os == system.OSWindows {
 				name += exeSuffix
