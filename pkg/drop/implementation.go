@@ -60,10 +60,18 @@ type installerImplementation interface {
 	// InstallAsset invokes the system mechanism to set up the downloaded artifact
 	// in the local machine.
 	InstallAsset(*GetOptions, *system.Info, *InstallArtifact, string) error
+
+	// RecordInstall registers a successful installation in the user's
+	// inventory database so it can later be verified, updated or removed.
+	RecordInstall(*GetOptions, *InstallArtifact, string, bool) error
 }
 
 type defaultImplementation struct {
 	runner commandRunner
+
+	// inventoryPath overrides the location of the inventory database,
+	// when empty the default (in the user's config dir) is used.
+	inventoryPath string
 }
 
 func (di *defaultImplementation) GetSystemInfo(*Options) (*system.Info, error) {

@@ -4,6 +4,8 @@
 package drop
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/inventory"
 	"github.com/carabiner-dev/drop/pkg/system"
 )
 
@@ -422,4 +425,81 @@ func TestDownloadAssetToTmp(t *testing.T) {
 	data, err := os.ReadFile(path) //nolint:gosec // path is a test-controlled tmp file
 	require.NoError(t, err)
 	require.Equal(t, "artifact-data", string(data))
+}
+
+func TestRecordInstall(t *testing.T) {
+	t.Parallel()
+	content := []byte("artifact-data")
+	sum := sha256.Sum256(content)
+	wantDigest := hex.EncodeToString(sum[:])
+
+	asset := &github.Asset{
+		Host:    "github.com",
+		Org:     "carabiner-dev",
+		Repo:    testAppName,
+		Version: "v0.1.0",
+		Name:    testBinFile,
+		Os:      system.OSLinux,
+		Arch:    system.ArchAMD64,
+	}
+
+	for _, tc := range []struct {
+		name     string
+		artifact *InstallArtifact
+		verified bool
+		check    func(t *testing.T, r *inventory.Record)
+	}{
+		{
+			name: "binary",
+			artifact: &InstallArtifact{
+				Kind: ArtifactBinary, Asset: asset, InstallName: testAppName,
+			},
+			verified: true,
+			check: func(t *testing.T, r *inventory.Record) {
+				t.Helper()
+				require.Equal(t, string(ArtifactBinary), r.Kind)
+				require.Equal(t, filepath.Join("/opt/bin", testAppName), r.BinPath)
+				require.Empty(t, r.PackageFormat)
+				require.True(t, r.Verified)
+			},
+		},
+		{
+			name: "package-unverified",
+			artifact: &InstallArtifact{
+				Kind: ArtifactPackage, PackageFormat: system.PackageRPM,
+				Asset: asset, InstallName: testAppName,
+			},
+			verified: false,
+			check: func(t *testing.T, r *inventory.Record) {
+				t.Helper()
+				require.Equal(t, string(ArtifactPackage), r.Kind)
+				require.Equal(t, system.PackageRPM, r.PackageFormat)
+				require.Empty(t, r.BinPath)
+				require.False(t, r.Verified)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			downloaded := filepath.Join(t.TempDir(), testBinFile)
+			require.NoError(t, os.WriteFile(downloaded, content, 0o600))
+
+			invPath := filepath.Join(t.TempDir(), "installed.json")
+			di := &defaultImplementation{inventoryPath: invPath}
+			opts := &GetOptions{BinDir: "/opt/bin"}
+
+			require.NoError(t, di.RecordInstall(opts, tc.artifact, downloaded, tc.verified))
+
+			inv, err := inventory.OpenFile(invPath)
+			require.NoError(t, err)
+			record := inv.Get("github.com/carabiner-dev/drop#drop")
+			require.NotNil(t, record)
+			require.Equal(t, testAppName, record.Name)
+			require.Equal(t, "v0.1.0", record.Version)
+			require.Equal(t, testBinFile, record.Asset)
+			require.Equal(t, map[string]string{"sha256": wantDigest}, record.Digest)
+			require.False(t, record.InstalledAt.IsZero())
+			tc.check(t, record)
+		})
+	}
 }

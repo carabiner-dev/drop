@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/carabiner-dev/drop/pkg/github"
 )
 
@@ -181,6 +183,12 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetO
 	// Install the asset in the system
 	if err := dropper.impl.InstallAsset(&opts, sysinfo, artifact, downloadPath); err != nil {
 		return fmt.Errorf("installing asset: %w", err)
+	}
+
+	// Register the installation in the inventory. The app is already
+	// installed at this point, so a recording failure is not fatal.
+	if err := dropper.impl.RecordInstall(&opts, artifact, downloadPath, !opts.SkipVerification); err != nil {
+		logrus.Warnf("app installed, but recording it in the inventory failed: %v", err)
 	}
 
 	return nil
