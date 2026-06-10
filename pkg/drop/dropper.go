@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 )
@@ -37,7 +38,7 @@ func New(funcs ...FuncOption) (*Dropper, error) {
 	d := &Dropper{
 		Options: opts,
 		client:  client,
-		impl:    &defaultImplementation{},
+		impl:    &defaultImplementation{runner: &execRunner{}},
 	}
 
 	for _, fn := range funcs {
@@ -134,38 +135,51 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetO
 		return fmt.Errorf("reading system information: %w", err)
 	}
 
-	asset, err := dropper.impl.ChooseAsset(&opts, dropper.client, spec)
+	artifact, err := dropper.impl.SelectInstallArtifact(&opts, dropper.client, sysinfo, spec)
 	if err != nil {
 		return fmt.Errorf("unable to locate a suitable asset: %w", err)
 	}
 
 	// Look for the asset polcies
-	policies, err := dropper.impl.FetchPolicies(&dropper.Options, asset)
+	policies, err := dropper.impl.FetchPolicies(&dropper.Options, artifact.Asset)
 	if err != nil {
 		return fmt.Errorf("finding asset polcies: %w", err)
 	}
 
+	if len(policies) == 0 && !opts.SkipVerification {
+		return ErrNoPolicyAvailable
+	}
+
 	// Downlad the asset to install
-	downloadPath, err := dropper.impl.DownloadAssetToTmp(&opts, asset)
+	downloadPath, err := dropper.impl.DownloadAssetToTmp(&opts, artifact.Asset)
 	if err != nil {
 		return fmt.Errorf("downloading asset: %w", err)
 	}
+	// The asset is downloaded to its own temporary directory, remove it
+	// (and the verified artifact) once installed or on error.
+	defer os.RemoveAll(filepath.Dir(downloadPath)) //nolint:errcheck
 
 	// Verify the asset data
-	ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
-	if err != nil {
-		return fmt.Errorf("error verifying asset: %w", err)
-	}
+	if opts.SkipVerification {
+		opts.Listener.HandleEvent(
+			&Event{Object: EventObjectVerification, Verb: EventVerbSkipped},
+		)
+	} else {
+		ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, artifact.Asset, downloadPath)
+		if err != nil {
+			return fmt.Errorf("error verifying asset: %w", err)
+		}
 
-	// If verification failed, we're done
-	if !ok {
-		return ErrVerificationFailed
+		// If verification failed, we're done
+		if !ok {
+			return ErrVerificationFailed
+		}
 	}
 
 	// TODO(puerco): Probably here we should output a summary of the verification
 
 	// Install the asset in the system
-	if err := dropper.impl.InstallAsset(&dropper.Options, sysinfo, downloadPath); err != nil {
+	if err := dropper.impl.InstallAsset(&opts, sysinfo, artifact, downloadPath); err != nil {
 		return fmt.Errorf("installing asset: %w", err)
 	}
 
