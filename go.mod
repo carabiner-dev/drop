@@ -3,7 +3,7 @@ module github.com/carabiner-dev/drop
 go 1.26.4
 
 require (
-	github.com/carabiner-dev/ampel v1.2.2-0.20260605075602-1e1a6864fc8f
+	github.com/carabiner-dev/ampel v1.3.0
 	github.com/carabiner-dev/attestation v0.2.1
 	github.com/carabiner-dev/collector v0.3.7
 	github.com/carabiner-dev/hasher v0.2.4
