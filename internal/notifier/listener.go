@@ -60,6 +60,31 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 			}
 			fmt.Printf("  💾 %s%s\n", w("Download complete!"), p)
 		}
+	case drop.EventObjectInstall:
+		switch event.Verb {
+		case drop.EventVerbRunning:
+			sudo := ""
+			if event.GetDataField("sudo") == "true" {
+				sudo = " with sudo (you may be asked for your password)"
+			}
+			if event.GetDataField("kind") == string(drop.ArtifactPackage) {
+				format := event.GetDataField("format")
+				fmt.Printf("  📦 %s\n", w(fmt.Sprintf("Installing %s package%s...", format, sudo)))
+			} else {
+				target := event.GetDataField("target")
+				fmt.Printf("  🔧 %s\n", w(fmt.Sprintf("Installing binary to %s%s...", target, sudo)))
+			}
+		case drop.EventVerbDone:
+			name := "app"
+			if s := event.GetDataField("name"); s != "" {
+				name = s
+			}
+			fmt.Printf("  🎉 %s\n", w(fmt.Sprintf("%s installed!", name)))
+		case drop.EventVerbSkipped:
+			if reason := event.GetDataField("reason"); reason != "" {
+				fmt.Printf("      ℹ️  %s\n", reason)
+			}
+		}
 	case drop.EventObjectVerification:
 		switch event.Verb {
 		case drop.EventVerbRunning:

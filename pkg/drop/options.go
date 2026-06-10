@@ -15,10 +15,12 @@ import (
 
 var defaultOptions = Options{}
 
+// The default platform is normalized to the canonical OS/arch labels so it
+// matches the values parsed from the release asset filenames.
 var defaultGetOptions = GetOptions{
 	DownloadPath:    ".",
-	OS:              runtime.GOOS,
-	Arch:            runtime.GOARCH,
+	OS:              system.GetOS(runtime.GOOS),
+	Arch:            system.GetArch(runtime.GOARCH),
 	TransferTimeOut: 900,
 	BinDir:          "/usr/local/bin",
 }
