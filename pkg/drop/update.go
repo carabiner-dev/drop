@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"slices"
 
 	"github.com/Masterminds/semver/v3"
@@ -90,6 +91,42 @@ func (dropper *Dropper) latestReleaseVersion(record *inventory.Record) (string, 
 		return "", errors.New("repository has no releases")
 	}
 	return releases[0].GetVersion(), nil
+}
+
+// updateInstallOptions builds the install options to update an app, honoring
+// the choices recorded when it was installed: the artifact kind, the binary
+// location and the verification stance.
+func updateInstallOptions(record *inventory.Record) []FuncGetOption {
+	options := []FuncGetOption{
+		WithVerifyDownloads(record.Verified),
+	}
+	switch record.Kind {
+	case string(ArtifactBinary):
+		options = append(options, WithDownloadType("b"))
+		if record.BinPath != "" {
+			options = append(options, WithBinDir(filepath.Dir(record.BinPath)))
+		}
+	case string(ArtifactPackage):
+		options = append(options, WithDownloadType("p"))
+	}
+	return options
+}
+
+// Update reinstalls an app from the latest release of its repository,
+// reusing the choices recorded when it was originally installed.
+func (dropper *Dropper) Update(status *UpdateStatus, funcs ...FuncGetOption) error {
+	record := status.Record
+	spec := &github.Asset{
+		Host: record.Host,
+		Org:  record.Org,
+		Repo: record.Repo,
+		Name: record.Name,
+	}
+
+	options := updateInstallOptions(record)
+	options = append(options, funcs...)
+
+	return dropper.Install(spec, options...)
 }
 
 // versionIsNewer compares two release tags, using semver ordering when both
