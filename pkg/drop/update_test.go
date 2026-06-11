@@ -4,6 +4,7 @@
 package drop
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -82,7 +83,8 @@ func TestUpdateInstallOptions(t *testing.T) {
 				require.NoError(t, fn(opts))
 			}
 			require.Equal(t, tc.expectType, opts.DownloadType)
-			require.Equal(t, tc.expectBinDir, opts.BinDir)
+			// filepath.Dir returns OS-native separators on windows
+			require.Equal(t, filepath.FromSlash(tc.expectBinDir), opts.BinDir)
 			require.Equal(t, tc.expectSkipVerify, opts.SkipVerification)
 		})
 	}
