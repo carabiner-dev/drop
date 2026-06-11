@@ -114,6 +114,7 @@ func Execute() {
 	addInstall(rootCmd)
 	addLs(rootCmd)
 	addGet(rootCmd)
+	addCheckUpdate(rootCmd)
 	rootCmd.AddCommand(version.WithFont("doom"))
 
 	if err := rootCmd.Execute(); err != nil {
