@@ -4,9 +4,13 @@
 package drop
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/carabiner-dev/drop/pkg/inventory"
+	"github.com/carabiner-dev/drop/pkg/system"
 )
 
 const (
@@ -37,6 +41,51 @@ func TestVersionIsNewer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.expect, versionIsNewer(tc.installed, tc.latest))
+		})
+	}
+}
+
+func TestUpdateInstallOptions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name             string
+		record           *inventory.Record
+		expectType       string
+		expectBinDir     string
+		expectSkipVerify bool
+	}{
+		{
+			name: "verified-binary",
+			record: &inventory.Record{
+				Kind: string(ArtifactBinary), BinPath: "/opt/tools/cosign", Verified: true,
+			},
+			expectType: "b", expectBinDir: "/opt/tools", expectSkipVerify: false,
+		},
+		{
+			name: "unverified-binary-default-dir",
+			record: &inventory.Record{
+				Kind: string(ArtifactBinary), Verified: false,
+			},
+			expectType: "b", expectBinDir: "", expectSkipVerify: true,
+		},
+		{
+			name: "package",
+			record: &inventory.Record{
+				Kind: string(ArtifactPackage), PackageFormat: system.PackageRPM, Verified: true,
+			},
+			expectType: "p", expectBinDir: "", expectSkipVerify: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			opts := &GetOptions{}
+			for _, fn := range updateInstallOptions(tc.record) {
+				require.NoError(t, fn(opts))
+			}
+			require.Equal(t, tc.expectType, opts.DownloadType)
+			// filepath.Dir returns OS-native separators on windows
+			require.Equal(t, filepath.FromSlash(tc.expectBinDir), opts.BinDir)
+			require.Equal(t, tc.expectSkipVerify, opts.SkipVerification)
 		})
 	}
 }
