@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/carabiner-dev/ampel v1.3.0
+	github.com/carabiner-dev/ampel v1.3.1
 	github.com/carabiner-dev/attestation v0.2.1
 	github.com/carabiner-dev/collector v0.3.7
 	github.com/carabiner-dev/hasher v0.2.4
