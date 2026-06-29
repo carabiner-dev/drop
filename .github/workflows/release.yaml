@@ -35,7 +35,7 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d # v0.9
+      - uses: ko-build/setup-ko@61b4d1d396f5b2e7d6bb6fefdce3dc38d1a13445 # v0.10
 
       - name: Install tejolote
         uses: kubernetes-sigs/release-actions/setup-tejolote@8753ea6bdadb814d779c6ec34eaca689dbfb492b # v0.4.3
