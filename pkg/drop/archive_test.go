@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -39,8 +40,14 @@ const (
 	appTarGz     = "app_1.0_linux_amd64.tar.gz"
 	fooName      = "foo"
 	hugoName     = "hugo"
+	hugoExtended = "hugo_extended"
+	hugoTarGz    = "hugo_extended_0.1_linux-amd64.tar.gz"
 	k8sClient    = "kubernetes-client"
 	kubeadmEntry = "bin/kubeadm"
+	kubectlEntry = "bin/kubectl"
+	licenseFile  = "LICENSE"
+	licenseText  = "MIT"
+	readmeFile   = "README"
 )
 
 // recorder is a listener that keeps the events it receives
@@ -218,7 +225,7 @@ func TestSelectArchiveEntry(t *testing.T) {
 		},
 		{
 			name:    "wrapper-script-only",
-			entries: []archive.Entry{regular(fooName, textContent), regular("README", "readme")},
+			entries: []archive.Entry{regular(fooName, textContent), regular(readmeFile, "readme")},
 			wanted:  fooName, os: system.OSLinux, expectErr: ErrNoBinaryInArchive,
 		},
 		{
@@ -268,18 +275,18 @@ func TestSelectArchiveEntry(t *testing.T) {
 		},
 		{
 			name:    "pinned-not-executable-is-ignored",
-			entries: []archive.Entry{regular("README", "readme"), regular(fooName, elfContent)},
-			wanted:  fooName, pinned: "README", os: system.OSLinux, expect: fooName,
+			entries: []archive.Entry{regular(readmeFile, "readme"), regular(fooName, elfContent)},
+			wanted:  fooName, pinned: readmeFile, os: system.OSLinux, expect: fooName,
 		},
 		{
 			name:    "pinned-missing-no-match",
 			entries: []archive.Entry{regular("kubectl", elfContent)},
-			wanted:  k8sClient, pinned: "bin/kubectl", os: system.OSLinux, expectErr: ErrNoMatchingArchiveEntry,
+			wanted:  k8sClient, pinned: kubectlEntry, os: system.OSLinux, expectErr: ErrNoMatchingArchiveEntry,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := selectArchiveEntry(tc.entries, tc.wanted, tc.pinned, tc.os)
+			got, err := selectArchiveEntry(tc.entries, &archiveChoice{wanted: tc.wanted, pinned: tc.pinned, targetOS: tc.os})
 			if tc.expectErr != nil {
 				require.ErrorIs(t, err, tc.expectErr)
 				require.Nil(t, got)
@@ -289,6 +296,127 @@ func TestSelectArchiveEntry(t *testing.T) {
 			require.NotNil(t, got)
 			require.Equal(t, tc.expect, got.Path)
 			require.True(t, got.IsRegular())
+		})
+	}
+}
+
+// fakeSelector records the prompts it receives and answers with a fixed
+// choice or error.
+type fakeSelector struct {
+	calls      int
+	archive    string
+	wanted     string
+	candidates []string
+	choice     string
+	err        error
+}
+
+func (f *fakeSelector) fn() ArchiveEntrySelector {
+	return func(archiveName, wanted string, candidates []string) (string, error) {
+		f.calls++
+		f.archive, f.wanted, f.candidates = archiveName, wanted, candidates
+		return f.choice, f.err
+	}
+}
+
+func TestSelectArchiveEntrySelector(t *testing.T) {
+	t.Parallel()
+	single := []archive.Entry{regular(licenseFile, licenseText), regular(hugoName, elfContent)}
+	several := []archive.Entry{regular(kubectlEntry, elfContent), regular(kubeadmEntry, elfContent), regular(readmeFile, "readme")}
+
+	for _, tc := range []struct {
+		name             string
+		entries          []archive.Entry
+		wanted           string
+		pinned           string
+		selector         *fakeSelector
+		expect           string
+		expectCandidates []string
+		expectErr        error
+		expectErrText    string
+	}{
+		{
+			name: "single-confirmed", entries: single, wanted: hugoExtended,
+			selector: &fakeSelector{choice: hugoName},
+			expect:   hugoName, expectCandidates: []string{hugoName},
+		},
+		{
+			name: "single-declined", entries: single, wanted: hugoExtended,
+			selector:  &fakeSelector{err: ErrInstallAborted},
+			expectErr: ErrInstallAborted, expectCandidates: []string{hugoName},
+		},
+		{
+			name: "several-chosen", entries: several, wanted: k8sClient,
+			selector: &fakeSelector{choice: kubeadmEntry},
+			expect:   kubeadmEntry, expectCandidates: []string{kubectlEntry, kubeadmEntry},
+		},
+		{
+			name: "several-chosen-first", entries: several, wanted: k8sClient,
+			selector: &fakeSelector{choice: kubectlEntry},
+			expect:   kubectlEntry, expectCandidates: []string{kubectlEntry, kubeadmEntry},
+		},
+		{
+			name: "choice-outside-the-list", entries: several, wanted: k8sClient,
+			selector:      &fakeSelector{choice: readmeFile},
+			expectErrText: "not one of the executables", expectCandidates: []string{kubectlEntry, kubeadmEntry},
+		},
+		{
+			name: "selector-failure", entries: several, wanted: k8sClient,
+			selector:      &fakeSelector{err: errors.New("terminal closed")},
+			expectErrText: "terminal closed", expectCandidates: []string{kubectlEntry, kubeadmEntry},
+		},
+		{
+			name: "no-selector", entries: single, wanted: hugoExtended,
+			expectErr: ErrNoMatchingArchiveEntry,
+		},
+		{
+			name: "not-asked-on-name-match", entries: single, wanted: hugoName,
+			selector: &fakeSelector{choice: licenseFile},
+			expect:   hugoName,
+		},
+		{
+			name: "not-asked-on-pin", entries: several, wanted: k8sClient, pinned: kubeadmEntry,
+			selector: &fakeSelector{choice: kubectlEntry},
+			expect:   kubeadmEntry,
+		},
+		{
+			name: "not-asked-without-executables", entries: []archive.Entry{regular(readmeFile, "readme")}, wanted: hugoName,
+			selector:  &fakeSelector{choice: readmeFile},
+			expectErr: ErrNoBinaryInArchive,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			choice := &archiveChoice{archive: hugoTarGz, wanted: tc.wanted, pinned: tc.pinned, targetOS: system.OSLinux}
+			if tc.selector != nil {
+				choice.selector = tc.selector.fn()
+			}
+
+			got, err := selectArchiveEntry(tc.entries, choice)
+
+			if tc.selector != nil {
+				if tc.expectCandidates == nil {
+					require.Zero(t, tc.selector.calls, "the selector must not be asked")
+				} else {
+					require.Equal(t, 1, tc.selector.calls)
+					require.Equal(t, hugoTarGz, tc.selector.archive)
+					require.Equal(t, tc.wanted, tc.selector.wanted)
+					require.Equal(t, tc.expectCandidates, tc.selector.candidates)
+				}
+			}
+
+			switch {
+			case tc.expectErr != nil:
+				require.ErrorIs(t, err, tc.expectErr)
+				require.Nil(t, got)
+			case tc.expectErrText != "":
+				require.ErrorContains(t, err, tc.expectErrText)
+				require.Nil(t, got)
+			default:
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				require.Equal(t, tc.expect, got.Path)
+			}
 		})
 	}
 }
@@ -363,6 +491,7 @@ func TestInstallAssetArchive(t *testing.T) {
 		data         []byte
 		artifactName string
 		pinned       string
+		selector     ArchiveEntrySelector
 		os           string
 		expectFile   string // installed filename, empty means an error is expected
 		expectEntry  string
@@ -390,14 +519,26 @@ func TestInstallAssetArchive(t *testing.T) {
 			artifactName: appName, os: system.OSLinux, expectErr: ErrNoBinaryInArchive,
 		},
 		{
-			name: "different-name-needs-a-choice", archiveName: "hugo_extended_0.1_linux-amd64.tar.gz",
-			data:         buildTarGz(t, []tarEntry{{name: hugoName, content: elfContent}, {name: "LICENSE", content: "MIT"}}),
-			artifactName: "hugo_extended", os: system.OSLinux, expectErr: ErrNoMatchingArchiveEntry,
+			name: "different-name-needs-a-choice", archiveName: hugoTarGz,
+			data:         buildTarGz(t, []tarEntry{{name: hugoName, content: elfContent}, {name: licenseFile, content: licenseText}}),
+			artifactName: hugoExtended, os: system.OSLinux, expectErr: ErrNoMatchingArchiveEntry,
 		},
 		{
-			name: "different-name-pinned", archiveName: "hugo_extended_0.1_linux-amd64.tar.gz",
-			data:         buildTarGz(t, []tarEntry{{name: hugoName, content: elfContent}, {name: "LICENSE", content: "MIT"}}),
-			artifactName: "hugo_extended", pinned: hugoName, os: system.OSLinux, expectFile: hugoName, expectEntry: hugoName,
+			name: "different-name-confirmed", archiveName: hugoTarGz,
+			data:         buildTarGz(t, []tarEntry{{name: hugoName, content: elfContent}, {name: licenseFile, content: licenseText}}),
+			artifactName: hugoExtended, selector: (&fakeSelector{choice: hugoName}).fn(), os: system.OSLinux,
+			expectFile: hugoName, expectEntry: hugoName,
+		},
+		{
+			name: "different-name-declined", archiveName: hugoTarGz,
+			data:         buildTarGz(t, []tarEntry{{name: hugoName, content: elfContent}, {name: licenseFile, content: licenseText}}),
+			artifactName: hugoExtended, selector: (&fakeSelector{err: ErrInstallAborted}).fn(), os: system.OSLinux,
+			expectErr: ErrInstallAborted,
+		},
+		{
+			name: "different-name-pinned", archiveName: hugoTarGz,
+			data:         buildTarGz(t, []tarEntry{{name: hugoName, content: elfContent}, {name: licenseFile, content: licenseText}}),
+			artifactName: hugoExtended, pinned: hugoName, os: system.OSLinux, expectFile: hugoName, expectEntry: hugoName,
 		},
 		{
 			name: "symlinked-binary", archiveName: appTarGz,
@@ -411,7 +552,7 @@ func TestInstallAssetArchive(t *testing.T) {
 		},
 		{
 			name: "pinned-under-another-name", archiveName: "tools_1.0_linux_amd64.tar.gz",
-			data:         buildTarGz(t, []tarEntry{{name: "bin/kubectl", content: elfContent}, {name: kubeadmEntry, content: elfContent}}),
+			data:         buildTarGz(t, []tarEntry{{name: kubectlEntry, content: elfContent}, {name: kubeadmEntry, content: elfContent}}),
 			artifactName: "tools", pinned: kubeadmEntry, os: system.OSLinux, expectFile: "kubeadm", expectEntry: kubeadmEntry,
 		},
 		{
@@ -431,7 +572,7 @@ func TestInstallAssetArchive(t *testing.T) {
 
 			binDir := t.TempDir()
 			events := &recorder{}
-			opts := &GetOptions{BinDir: binDir, OS: tc.os, ArchiveEntry: tc.pinned}
+			opts := &GetOptions{BinDir: binDir, OS: tc.os, ArchiveEntry: tc.pinned, EntrySelector: tc.selector}
 			opts.Listener = events
 			info := &system.Info{Os: tc.os, Arch: system.ArchAMD64}
 			installName := tc.artifactName

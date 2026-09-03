@@ -72,6 +72,10 @@ type GetOptions struct {
 	// when installing from an archive. Updates set it from the inventory
 	// so the choice made when the app was first installed is reused.
 	ArchiveEntry string
+
+	// EntrySelector chooses the executable to install from an archive when
+	// none is named after the installable.
+	EntrySelector ArchiveEntrySelector
 }
 
 type (
@@ -163,6 +167,13 @@ func WithArtifactSelector(fn ArtifactSelector) FuncGetOption {
 func WithArchiveEntry(entryPath string) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.ArchiveEntry = entryPath
+		return nil
+	}
+}
+
+func WithArchiveEntrySelector(fn ArchiveEntrySelector) FuncGetOption {
+	return func(o *GetOptions) error {
+		o.EntrySelector = fn
 		return nil
 	}
 }

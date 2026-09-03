@@ -26,6 +26,31 @@ var (
 	ErrNoMatchingArchiveEntry = errors.New("no executable named after the installable in the archive")
 )
 
+// ArchiveEntrySelector chooses which executable inside an archive to install
+// when none is named after the installable. It receives the archive filename,
+// the installable name and the paths of the executables found, and returns
+// the chosen path, or ErrInstallAborted when the user declines. The CLI
+// injects an interactive implementation when running on a terminal.
+type ArchiveEntrySelector func(archiveName, wanted string, candidates []string) (string, error)
+
+// archiveChoice gathers the inputs to pick the file to install from an archive.
+type archiveChoice struct {
+	// archive is the archive filename, shown when asking the user
+	archive string
+
+	// wanted is the installable name
+	wanted string
+
+	// pinned is the entry recorded by a previous install of the app
+	pinned string
+
+	// targetOS is the platform the binary must run on
+	targetOS string
+
+	// selector asks which executable to install when none matches wanted
+	selector ArchiveEntrySelector
+}
+
 // maxExtractedSize caps the size of a binary extracted from an archive,
 // guarding against decompression bombs.
 const maxExtractedSize = 1 << 30 // 1 GiB
@@ -172,18 +197,19 @@ func matchByName(entries, candidates []archive.Entry, wanted, targetOS string) *
 
 // selectArchiveEntry picks the file to install from the contents of an
 // archive: the pinned entry when it is present and installable, otherwise
-// the executable named after the installable. When neither applies, the
-// error lists the executables found so the caller can choose.
-func selectArchiveEntry(entries []archive.Entry, wanted, pinned, targetOS string) (*archive.Entry, error) {
-	candidates := archiveCandidates(entries, targetOS)
+// the executable named after the installable. When neither applies the
+// selector is asked to choose among the executables found; without one the
+// error lists them.
+func selectArchiveEntry(entries []archive.Entry, choice *archiveChoice) (*archive.Entry, error) {
+	candidates := archiveCandidates(entries, choice.targetOS)
 
-	if pinned != "" {
-		if e := findEntry(candidates, pinned); e != nil {
+	if choice.pinned != "" {
+		if e := findEntry(candidates, choice.pinned); e != nil {
 			return e, nil
 		}
 	}
 
-	if e := matchByName(entries, candidates, wanted, targetOS); e != nil {
+	if e := matchByName(entries, candidates, choice.wanted, choice.targetOS); e != nil {
 		return e, nil
 	}
 
@@ -194,7 +220,20 @@ func selectArchiveEntry(entries []archive.Entry, wanted, pinned, targetOS string
 	for _, c := range candidates {
 		names = append(names, c.Path)
 	}
-	return nil, fmt.Errorf("%w (%q): found %s", ErrNoMatchingArchiveEntry, wanted, strings.Join(names, ", "))
+
+	if choice.selector == nil {
+		return nil, fmt.Errorf("%w (%q): found %s", ErrNoMatchingArchiveEntry, choice.wanted, strings.Join(names, ", "))
+	}
+
+	chosen, err := choice.selector(choice.archive, choice.wanted, names)
+	if err != nil {
+		return nil, fmt.Errorf("choosing the file to install from %s: %w", choice.archive, err)
+	}
+	e := findEntry(candidates, chosen)
+	if e == nil {
+		return nil, fmt.Errorf("%q is not one of the executables found in %s", chosen, choice.archive)
+	}
+	return e, nil
 }
 
 // installArchive locates the app binary inside the downloaded archive,
@@ -207,6 +246,7 @@ func (di *defaultImplementation) installArchive(
 		return fmt.Errorf("reading archive: %w", err)
 	}
 
+	archiveName := filepath.Base(archivePath)
 	var entry *archive.Entry
 	if format.Container == "" {
 		// A bare compressed file holds nothing but the binary, which
@@ -217,7 +257,13 @@ func (di *defaultImplementation) installArchive(
 		}
 		entry = &candidates[0]
 	} else {
-		entry, err = selectArchiveEntry(entries, artifact.Name, opts.ArchiveEntry, opts.OS)
+		entry, err = selectArchiveEntry(entries, &archiveChoice{
+			archive:  archiveName,
+			wanted:   artifact.Name,
+			pinned:   opts.ArchiveEntry,
+			targetOS: opts.OS,
+			selector: opts.EntrySelector,
+		})
 		if err != nil {
 			return err
 		}
@@ -230,7 +276,6 @@ func (di *defaultImplementation) installArchive(
 		}
 	}
 
-	archiveName := filepath.Base(archivePath)
 	opts.Listener.HandleEvent(&Event{
 		Object: EventObjectArchive, Verb: EventVerbRunning,
 		Data: map[string]string{
