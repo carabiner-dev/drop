@@ -62,7 +62,13 @@ type InstallArtifact struct {
 	// Asset is the release asset variant to download.
 	Asset *github.Asset
 
+	// Name is the installable name identifying the app. It keys the app in
+	// the inventory and is the name updates look up in newer releases.
+	Name string
+
 	// InstallName is the name the binary gets when installed into the path.
+	// It usually matches Name (plus .exe on windows) but can differ when
+	// the installed file is not named after the installable.
 	InstallName string
 }
 
@@ -132,12 +138,13 @@ func classifyInstallCandidates(inst *github.Installable, osName, arch, pkgFormat
 				name += exeSuffix
 			}
 			cands.Binary = &InstallArtifact{
-				Kind: ArtifactBinary, Asset: variant, InstallName: name,
+				Kind: ArtifactBinary, Asset: variant,
+				Name: inst.GetName(), InstallName: name,
 			}
 		case pkgFormat != "" && packageType == pkgFormat:
 			cands.Package = &InstallArtifact{
 				Kind: ArtifactPackage, PackageFormat: packageType,
-				Asset: variant, InstallName: inst.GetName(),
+				Asset: variant, Name: inst.GetName(), InstallName: inst.GetName(),
 			}
 		default:
 			cands.HasOtherPkg = true
@@ -147,26 +154,29 @@ func classifyInstallCandidates(inst *github.Installable, osName, arch, pkgFormat
 }
 
 // classifySingleAsset builds an install artifact from a single concrete asset,
-// for when the user pinned an exact file instead of an installable.
-func classifySingleAsset(asset *github.Asset, installName, pkgFormat string) (*InstallArtifact, error) {
-	name := asset.GetName()
-	if system.ArchiveExtensions.GetTypeFromFile(name) != "" {
+// for when the user pinned an exact file instead of an installable. The
+// artifact is recorded under name, the installable name the asset belongs to.
+func classifySingleAsset(asset *github.Asset, name, pkgFormat string) (*InstallArtifact, error) {
+	filename := asset.GetName()
+	if system.ArchiveExtensions.GetTypeFromFile(filename) != "" {
 		return nil, ErrOnlyArchives
 	}
-	if pkgType := system.PackageExtensions.GetTypeFromFile(name); pkgType != "" {
+	appName := strings.TrimSuffix(name, exeSuffix)
+	if pkgType := system.PackageExtensions.GetTypeFromFile(filename); pkgType != "" {
 		if pkgFormat == "" || pkgType != pkgFormat {
 			return nil, ErrNoInstallableArtifact
 		}
 		return &InstallArtifact{
 			Kind: ArtifactPackage, PackageFormat: pkgType,
-			Asset: asset, InstallName: installName,
+			Asset: asset, Name: appName, InstallName: name,
 		}, nil
 	}
+	installName := name
 	if asset.Os == system.OSWindows && !strings.HasSuffix(installName, exeSuffix) {
 		installName += exeSuffix
 	}
 	return &InstallArtifact{
-		Kind: ArtifactBinary, Asset: asset, InstallName: installName,
+		Kind: ArtifactBinary, Asset: asset, Name: appName, InstallName: installName,
 	}, nil
 }
 
@@ -564,11 +574,18 @@ func (di *defaultImplementation) RecordInstall(
 		return err
 	}
 
+	// The record is keyed by the installable name. Artifacts built by hand
+	// may only carry the file name, derive it from there.
+	name := artifact.Name
+	if name == "" {
+		name = strings.TrimSuffix(artifact.InstallName, exeSuffix)
+	}
+
 	record := &inventory.Record{
 		Host:     artifact.Asset.GetHost(),
 		Org:      artifact.Asset.GetOrg(),
 		Repo:     artifact.Asset.GetRepo(),
-		Name:     strings.TrimSuffix(artifact.InstallName, exeSuffix),
+		Name:     name,
 		Version:  artifact.Asset.GetVersion(),
 		Kind:     string(artifact.Kind),
 		Asset:    artifact.Asset.GetName(),

@@ -49,6 +49,8 @@ func (f *fakeRunner) LookPath(file string) (string, error) {
 const (
 	testAppName = "drop"
 	testBinFile = "drop-linux-amd64"
+	testExeFile = "drop-windows-amd64.exe"
+	testToolExe = "tool.exe"
 	testRPMFile = "drop-1.0.0-1.x86_64.rpm"
 	testRPMPath = "/tmp/d/drop.rpm"
 	testDebPath = "/tmp/d/drop.deb"
@@ -64,7 +66,7 @@ func testInstallable() *github.Installable {
 			{Name: testRPMFile, Os: system.OSLinux, Arch: system.ArchAMD64},
 			{Name: "drop-linux-amd64.tar.gz", Os: system.OSLinux, Arch: system.ArchAMD64},
 			{Name: "drop-darwin-arm64.dmg", Os: system.OSDarwin, Arch: system.ArchArm64},
-			{Name: "drop-windows-amd64.exe", Os: system.OSWindows, Arch: system.ArchAMD64},
+			{Name: testExeFile, Os: system.OSWindows, Arch: system.ArchAMD64},
 		},
 	}
 }
@@ -98,7 +100,7 @@ func TestClassifyInstallCandidates(t *testing.T) {
 		},
 		{
 			name: "windows-exe", os: system.OSWindows, arch: system.ArchAMD64, pkgFormat: "",
-			binaryName: "drop-windows-amd64.exe", installName: "drop.exe",
+			binaryName: testExeFile, installName: "drop.exe",
 		},
 		{
 			name: "darwin-dmg-unsupported", os: system.OSDarwin, arch: system.ArchArm64, pkgFormat: "",
@@ -114,6 +116,7 @@ func TestClassifyInstallCandidates(t *testing.T) {
 			} else {
 				require.NotNil(t, cands.Binary)
 				require.Equal(t, tc.binaryName, cands.Binary.Asset.GetName())
+				require.Equal(t, testAppName, cands.Binary.Name)
 				require.Equal(t, tc.installName, cands.Binary.InstallName)
 				require.Equal(t, ArtifactBinary, cands.Binary.Kind)
 			}
@@ -123,12 +126,80 @@ func TestClassifyInstallCandidates(t *testing.T) {
 			} else {
 				require.NotNil(t, cands.Package)
 				require.Equal(t, tc.pkgName, cands.Package.Asset.GetName())
+				require.Equal(t, testAppName, cands.Package.Name)
+				require.Equal(t, testAppName, cands.Package.InstallName)
 				require.Equal(t, tc.pkgFormat, cands.Package.PackageFormat)
 				require.Equal(t, ArtifactPackage, cands.Package.Kind)
 			}
 
 			require.Equal(t, tc.hasArchives, cands.HasArchives)
 			require.Equal(t, tc.hasOtherPkg, cands.HasOtherPkg)
+		})
+	}
+}
+
+func TestClassifySingleAsset(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		asset       *github.Asset
+		installName string
+		pkgFormat   string
+		expectKind  ArtifactKind
+		expectName  string
+		expectFile  string
+		expectErr   error
+	}{
+		{
+			name:        "linux-binary",
+			asset:       &github.Asset{Name: testBinFile, Os: system.OSLinux, Arch: system.ArchAMD64},
+			installName: testAppName, pkgFormat: system.PackageRPM,
+			expectKind: ArtifactBinary, expectName: testAppName, expectFile: testAppName,
+		},
+		{
+			name:        "windows-binary-adds-exe",
+			asset:       &github.Asset{Name: testExeFile, Os: system.OSWindows, Arch: system.ArchAMD64},
+			installName: testAppName,
+			expectKind:  ArtifactBinary, expectName: testAppName, expectFile: testAppName + exeSuffix,
+		},
+		{
+			name:        "windows-plain-asset-keeps-exe",
+			asset:       &github.Asset{Name: testToolExe, Os: system.OSWindows},
+			installName: testToolExe,
+			expectKind:  ArtifactBinary, expectName: "tool", expectFile: testToolExe,
+		},
+		{
+			name:        "matching-package",
+			asset:       &github.Asset{Name: testRPMFile, Os: system.OSLinux, Arch: system.ArchAMD64},
+			installName: testAppName, pkgFormat: system.PackageRPM,
+			expectKind: ArtifactPackage, expectName: testAppName, expectFile: testAppName,
+		},
+		{
+			name:        "other-package-format",
+			asset:       &github.Asset{Name: testRPMFile, Os: system.OSLinux, Arch: system.ArchAMD64},
+			installName: testAppName, pkgFormat: system.PackageDeb,
+			expectErr: ErrNoInstallableArtifact,
+		},
+		{
+			name:        "archive",
+			asset:       &github.Asset{Name: "drop-linux-amd64.tar.gz", Os: system.OSLinux, Arch: system.ArchAMD64},
+			installName: testAppName, pkgFormat: system.PackageRPM,
+			expectErr: ErrOnlyArchives,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			artifact, err := classifySingleAsset(tc.asset, tc.installName, tc.pkgFormat)
+			if tc.expectErr != nil {
+				require.ErrorIs(t, err, tc.expectErr)
+				require.Nil(t, artifact)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expectKind, artifact.Kind)
+			require.Equal(t, tc.expectName, artifact.Name)
+			require.Equal(t, tc.expectFile, artifact.InstallName)
+			require.Same(t, tc.asset, artifact.Asset)
 		})
 	}
 }
@@ -478,6 +549,18 @@ func TestRecordInstall(t *testing.T) {
 				require.False(t, r.Verified)
 			},
 		},
+		{
+			name: "binary-installed-under-another-name",
+			artifact: &InstallArtifact{
+				Kind: ArtifactBinary, Asset: asset, Name: testAppName, InstallName: "dropper",
+			},
+			verified: true,
+			check: func(t *testing.T, r *inventory.Record) {
+				t.Helper()
+				require.Equal(t, filepath.Join("/opt/bin", "dropper"), r.BinPath,
+					"the file lands under its install name")
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -493,7 +576,7 @@ func TestRecordInstall(t *testing.T) {
 			inv, err := inventory.OpenFile(invPath)
 			require.NoError(t, err)
 			record := inv.Get("github.com/carabiner-dev/drop#drop")
-			require.NotNil(t, record)
+			require.NotNil(t, record, "records are always keyed by the installable name")
 			require.Equal(t, testAppName, record.Name)
 			require.Equal(t, "v0.1.0", record.Version)
 			require.Equal(t, testBinFile, record.Asset)
@@ -527,6 +610,7 @@ func TestClassifyCosignStyleRelease(t *testing.T) {
 	require.NotNil(t, cands.Binary)
 	require.Equal(t, "cosign-linux-amd64", cands.Binary.Asset.GetName(),
 		"the canonical binary must win over flavored binaries and metadata files")
+	require.Equal(t, "cosign", cands.Binary.Name)
 	require.Equal(t, "cosign", cands.Binary.InstallName,
 		"binaries must install under the computed installable name")
 	require.NotNil(t, cands.Package)
