@@ -20,6 +20,15 @@ type Listener struct{}
 
 func (l *Listener) HandleEvent(event *drop.Event) {
 	switch event.Object {
+	case drop.EventObjectArchive:
+		switch event.Verb {
+		case drop.EventVerbRunning:
+			entry := event.GetDataField("entry")
+			archive := event.GetDataField("archive")
+			fmt.Printf("  📂 %s\n", w(fmt.Sprintf("Extracting %s from %s...", entry, archive)))
+		case drop.EventVerbDone:
+			fmt.Println("      ✔️  done")
+		}
 	case drop.EventObjectPolicy:
 		switch event.Verb {
 		case drop.EventVerbGet:
