@@ -49,6 +49,7 @@ func (f *fakeRunner) LookPath(file string) (string, error) {
 const (
 	testAppName = "drop"
 	testBinFile = "drop-linux-amd64"
+	testTgzFile = "drop-linux-amd64.tar.gz"
 	testExeFile = "drop-windows-amd64.exe"
 	testToolExe = "tool.exe"
 	testRPMFile = "drop-1.0.0-1.x86_64.rpm"
@@ -64,8 +65,11 @@ func testInstallable() *github.Installable {
 			{Name: "drop-linux-arm64", Os: system.OSLinux, Arch: system.ArchArm64},
 			{Name: "drop_1.0.0_amd64.deb", Os: system.OSLinux, Arch: system.ArchAMD64},
 			{Name: testRPMFile, Os: system.OSLinux, Arch: system.ArchAMD64},
-			{Name: "drop-linux-amd64.tar.gz", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: testTgzFile, Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "drop-linux-amd64.zip", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "drop-linux-arm64.rar", Os: system.OSLinux, Arch: system.ArchArm64},
 			{Name: "drop-darwin-arm64.dmg", Os: system.OSDarwin, Arch: system.ArchArm64},
+			{Name: "drop-darwin-arm64.tar.zst", Os: system.OSDarwin, Arch: system.ArchArm64},
 			{Name: testExeFile, Os: system.OSWindows, Arch: system.ArchAMD64},
 		},
 	}
@@ -74,37 +78,38 @@ func testInstallable() *github.Installable {
 func TestClassifyInstallCandidates(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name        string
-		os          string
-		arch        string
-		pkgFormat   string
-		binaryName  string // expected variant filename, "" = no binary
-		installName string
-		pkgName     string // expected variant filename, "" = no package
-		hasArchives bool
-		hasOtherPkg bool
+		name            string
+		os              string
+		arch            string
+		pkgFormat       string
+		binaryName      string // expected variant filename, "" = no binary
+		installName     string
+		pkgName         string // expected variant filename, "" = no package
+		archiveName     string // expected variant filename, "" = no archive
+		hasOtherArchive bool
+		hasOtherPkg     bool
 	}{
 		{
 			name: "linux-rpm", os: system.OSLinux, arch: system.ArchAMD64, pkgFormat: system.PackageRPM,
 			binaryName: testBinFile, installName: testAppName,
-			pkgName: testRPMFile, hasArchives: true, hasOtherPkg: true,
+			pkgName: testRPMFile, archiveName: testTgzFile, hasOtherPkg: true,
 		},
 		{
 			name: "linux-deb", os: system.OSLinux, arch: system.ArchAMD64, pkgFormat: system.PackageDeb,
 			binaryName: testBinFile, installName: testAppName,
-			pkgName: "drop_1.0.0_amd64.deb", hasArchives: true, hasOtherPkg: true,
+			pkgName: "drop_1.0.0_amd64.deb", archiveName: testTgzFile, hasOtherPkg: true,
 		},
 		{
-			name: "linux-arm64-binary-only", os: system.OSLinux, arch: system.ArchArm64, pkgFormat: system.PackageRPM,
-			binaryName: "drop-linux-arm64", installName: testAppName,
+			name: "linux-arm64-binary-and-rar", os: system.OSLinux, arch: system.ArchArm64, pkgFormat: system.PackageRPM,
+			binaryName: "drop-linux-arm64", installName: testAppName, hasOtherArchive: true,
 		},
 		{
 			name: "windows-exe", os: system.OSWindows, arch: system.ArchAMD64, pkgFormat: "",
 			binaryName: testExeFile, installName: "drop.exe",
 		},
 		{
-			name: "darwin-dmg-unsupported", os: system.OSDarwin, arch: system.ArchArm64, pkgFormat: "",
-			hasOtherPkg: true,
+			name: "darwin-archive-and-dmg", os: system.OSDarwin, arch: system.ArchArm64, pkgFormat: "",
+			archiveName: "drop-darwin-arm64.tar.zst", hasOtherPkg: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -132,8 +137,56 @@ func TestClassifyInstallCandidates(t *testing.T) {
 				require.Equal(t, ArtifactPackage, cands.Package.Kind)
 			}
 
-			require.Equal(t, tc.hasArchives, cands.HasArchives)
+			if tc.archiveName == "" {
+				require.Nil(t, cands.Archive)
+			} else {
+				require.NotNil(t, cands.Archive)
+				require.Equal(t, tc.archiveName, cands.Archive.Asset.GetName())
+				require.Equal(t, testAppName, cands.Archive.Name)
+				require.Equal(t, binaryFileName(testAppName, tc.os), cands.Archive.InstallName)
+				require.Equal(t, ArtifactArchive, cands.Archive.Kind)
+			}
+
+			require.Equal(t, tc.hasOtherArchive, cands.HasOtherArchive)
 			require.Equal(t, tc.hasOtherPkg, cands.HasOtherPkg)
+		})
+	}
+}
+
+func TestClassifyArchivePreference(t *testing.T) {
+	t.Parallel()
+	variants := func(names ...string) *github.Installable {
+		inst := &github.Installable{Name: testAppName}
+		for _, name := range names {
+			inst.Variants = append(inst.Variants, &github.Asset{Name: name, Os: system.OSLinux, Arch: system.ArchAMD64})
+		}
+		return inst
+	}
+	for _, tc := range []struct {
+		name            string
+		inst            *github.Installable
+		expect          string
+		hasOtherArchive bool
+	}{
+		{"tgz-over-zip", variants("drop-linux-amd64.zip", testTgzFile), testTgzFile, false},
+		{"txz-over-zip", variants("drop-linux-amd64.zip", "drop-linux-amd64.tar.xz"), "drop-linux-amd64.tar.xz", false},
+		{"zip-over-tbz", variants("drop-linux-amd64.tar.bz2", "drop-linux-amd64.zip"), "drop-linux-amd64.zip", false},
+		{"tar-over-bare-gz", variants("drop-linux-amd64.gz", "drop-linux-amd64.tar"), "drop-linux-amd64.tar", false},
+		{"shortest-name-on-ties", variants("drop-linux-amd64-full.tar.gz", testTgzFile, "drop-linux-amd64-slim.tar.gz"), testTgzFile, false},
+		{"unsupported-ignored", variants("drop-linux-amd64.7z", "drop-linux-amd64.rar", testTgzFile), testTgzFile, true},
+		{"unsupported-only", variants("drop-linux-amd64.7z"), "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cands := classifyInstallCandidates(tc.inst, system.OSLinux, system.ArchAMD64, system.PackageRPM)
+			if tc.expect == "" {
+				require.Nil(t, cands.Archive)
+			} else {
+				require.NotNil(t, cands.Archive)
+				require.Equal(t, tc.expect, cands.Archive.Asset.GetName())
+			}
+			require.Equal(t, tc.hasOtherArchive, cands.HasOtherArchive)
+			require.Nil(t, cands.Binary)
 		})
 	}
 }
@@ -181,8 +234,20 @@ func TestClassifySingleAsset(t *testing.T) {
 			expectErr: ErrNoInstallableArtifact,
 		},
 		{
-			name:        "archive",
-			asset:       &github.Asset{Name: "drop-linux-amd64.tar.gz", Os: system.OSLinux, Arch: system.ArchAMD64},
+			name:        "tgz-archive",
+			asset:       &github.Asset{Name: testTgzFile, Os: system.OSLinux, Arch: system.ArchAMD64},
+			installName: testAppName, pkgFormat: system.PackageRPM,
+			expectKind: ArtifactArchive, expectName: testAppName, expectFile: testAppName,
+		},
+		{
+			name:        "windows-archive",
+			asset:       &github.Asset{Name: "drop-windows-amd64.zip", Os: system.OSWindows, Arch: system.ArchAMD64},
+			installName: testAppName,
+			expectKind:  ArtifactArchive, expectName: testAppName, expectFile: testAppName + exeSuffix,
+		},
+		{
+			name:        "unsupported-archive",
+			asset:       &github.Asset{Name: "drop-linux-amd64.rar", Os: system.OSLinux, Arch: system.ArchAMD64},
 			installName: testAppName, pkgFormat: system.PackageRPM,
 			expectErr: ErrOnlyArchives,
 		},
@@ -207,11 +272,17 @@ func TestClassifySingleAsset(t *testing.T) {
 func TestDecideArtifact(t *testing.T) {
 	t.Parallel()
 	binary := &InstallArtifact{Kind: ArtifactBinary, InstallName: testAppName}
+	archive := &InstallArtifact{Kind: ArtifactArchive, InstallName: testAppName}
 	pkg := &InstallArtifact{Kind: ArtifactPackage, PackageFormat: system.PackageRPM, InstallName: testAppName}
 
 	pickPackage := func(cands []*InstallArtifact) (*InstallArtifact, error) {
 		require.Len(t, cands, 2)
 		return cands[1], nil
+	}
+	pickFirst := func(cands []*InstallArtifact) (*InstallArtifact, error) {
+		require.Len(t, cands, 2)
+		require.Equal(t, ArtifactPackage, cands[1].Kind, "the package is always offered second")
+		return cands[0], nil
 	}
 
 	for _, tc := range []struct {
@@ -230,10 +301,23 @@ func TestDecideArtifact(t *testing.T) {
 		{name: "only-binary", cands: &installCandidates{Binary: binary}, expect: binary},
 		{name: "only-package", cands: &installCandidates{Package: pkg}, expect: pkg},
 		{name: "none", cands: &installCandidates{}, expectErr: ErrNoInstallableArtifact},
-		{name: "only-archives", cands: &installCandidates{HasArchives: true}, expectErr: ErrOnlyArchives},
+		{name: "only-unsupported-archives", cands: &installCandidates{HasOtherArchive: true}, expectErr: ErrOnlyArchives},
 		{name: "both-already-installed", cands: &installCandidates{Binary: binary, Package: pkg}, installed: true, expect: pkg},
 		{name: "both-selector", cands: &installCandidates{Binary: binary, Package: pkg}, selector: pickPackage, expect: pkg},
 		{name: "both-no-selector-defaults-binary", cands: &installCandidates{Binary: binary, Package: pkg}, expect: binary},
+
+		// Archives are a binary source
+		{name: "forced-archive", cands: &installCandidates{Binary: binary, Archive: archive, Package: pkg}, downloadType: "a", expect: archive},
+		{name: "forced-archive-missing", cands: &installCandidates{Binary: binary, Package: pkg}, downloadType: "a", expectErr: ErrNoInstallableArtifact},
+		{name: "forced-archive-unsupported", cands: &installCandidates{Binary: binary, HasOtherArchive: true}, downloadType: "a", expectErr: ErrNoInstallableArtifact},
+		{name: "forced-binary-prefers-binary", cands: &installCandidates{Binary: binary, Archive: archive}, downloadType: "b", expect: binary},
+		{name: "forced-binary-falls-back-to-archive", cands: &installCandidates{Archive: archive, Package: pkg}, downloadType: "b", expect: archive},
+		{name: "only-archive", cands: &installCandidates{Archive: archive}, expect: archive},
+		{name: "binary-and-archive", cands: &installCandidates{Binary: binary, Archive: archive}, expect: binary},
+		{name: "archive-and-package-selector", cands: &installCandidates{Archive: archive, Package: pkg}, selector: pickFirst, expect: archive},
+		{name: "archive-and-package-already-installed", cands: &installCandidates{Archive: archive, Package: pkg}, installed: true, expect: pkg},
+		{name: "archive-and-package-no-selector", cands: &installCandidates{Archive: archive, Package: pkg}, expect: archive},
+		{name: "package-and-unsupported-archive", cands: &installCandidates{Package: pkg, HasOtherArchive: true}, expect: pkg},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -562,7 +646,7 @@ func TestRecordInstall(t *testing.T) {
 			},
 		},
 		{
-			name: "archive",
+			name: "archive-install",
 			artifact: &InstallArtifact{
 				Kind: ArtifactArchive, Asset: asset, Name: testAppName, InstallName: "dropper",
 				ArchiveEntry: "drop-1.0/bin/dropper",

@@ -95,7 +95,7 @@ func (dropper *Dropper) latestReleaseVersion(record *inventory.Record) (string, 
 
 // updateInstallOptions builds the install options to update an app, honoring
 // the choices recorded when it was installed: the artifact kind, the binary
-// location and the verification stance.
+// location, the file picked from an archive and the verification stance.
 func updateInstallOptions(record *inventory.Record) []FuncGetOption {
 	options := []FuncGetOption{
 		WithVerifyDownloads(record.Verified),
@@ -103,6 +103,11 @@ func updateInstallOptions(record *inventory.Record) []FuncGetOption {
 	switch record.Kind {
 	case string(ArtifactBinary):
 		options = append(options, WithDownloadType("b"))
+		if record.BinPath != "" {
+			options = append(options, WithBinDir(filepath.Dir(record.BinPath)))
+		}
+	case string(ArtifactArchive):
+		options = append(options, WithDownloadType("a"), WithArchiveEntry(record.ArchiveEntry))
 		if record.BinPath != "" {
 			options = append(options, WithBinDir(filepath.Dir(record.BinPath)))
 		}
