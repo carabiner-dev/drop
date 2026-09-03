@@ -193,7 +193,7 @@ func assetListToInstallableList(assets []AssetDataProvider) []AssetDataProvider 
 	}
 
 	slices.SortFunc(ret, func(a, b AssetDataProvider) int {
-		return cmp.Compare(a.GetName(), a.GetName())
+		return cmp.Compare(a.GetName(), b.GetName())
 	})
 
 	return ret
