@@ -561,6 +561,21 @@ func TestRecordInstall(t *testing.T) {
 					"the file lands under its install name")
 			},
 		},
+		{
+			name: "archive",
+			artifact: &InstallArtifact{
+				Kind: ArtifactArchive, Asset: asset, Name: testAppName, InstallName: "dropper",
+				ArchiveEntry: "drop-1.0/bin/dropper",
+			},
+			verified: true,
+			check: func(t *testing.T, r *inventory.Record) {
+				t.Helper()
+				require.Equal(t, string(ArtifactArchive), r.Kind)
+				require.Equal(t, filepath.Join("/opt/bin", "dropper"), r.BinPath)
+				require.Equal(t, "drop-1.0/bin/dropper", r.ArchiveEntry)
+				require.Empty(t, r.PackageFormat)
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

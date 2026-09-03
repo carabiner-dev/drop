@@ -32,6 +32,7 @@ type ArtifactKind string
 const (
 	ArtifactBinary  ArtifactKind = "binary"
 	ArtifactPackage ArtifactKind = "package"
+	ArtifactArchive ArtifactKind = "archive"
 )
 
 // Command and filename constants used when installing artifacts
@@ -53,7 +54,7 @@ const (
 
 // InstallArtifact is a concrete release asset chosen for installation.
 type InstallArtifact struct {
-	// Kind is the artifact type, binary or package.
+	// Kind is the artifact type: binary, package or archive.
 	Kind ArtifactKind
 
 	// PackageFormat is the package type (rpm, deb, apk) when Kind is package.
@@ -70,6 +71,11 @@ type InstallArtifact struct {
 	// It usually matches Name (plus .exe on windows) but can differ when
 	// the installed file is not named after the installable.
 	InstallName string
+
+	// ArchiveEntry is the path inside the archive of the installed file
+	// when Kind is archive. It is filled in once the archive is inspected
+	// and stays empty for bare compressed files.
+	ArchiveEntry string
 }
 
 // ArtifactSelector resolves an ambiguous choice between install candidates.
@@ -483,6 +489,8 @@ func (di *defaultImplementation) InstallAsset(
 		return di.installBinary(opts, info, artifact, path)
 	case ArtifactPackage:
 		return di.installPackage(opts, artifact, path)
+	case ArtifactArchive:
+		return di.installArchive(opts, info, artifact, path)
 	default:
 		return fmt.Errorf("unknown artifact kind %q", artifact.Kind)
 	}
@@ -568,7 +576,8 @@ func (di *defaultImplementation) RecordInstall(
 	}
 
 	// Hash the verified artifact. For binaries this is the same content
-	// that landed in the binaries directory.
+	// that landed in the binaries directory, for archives it is the
+	// archive the installed file was extracted from.
 	digest, err := fileDigest(downloadPath)
 	if err != nil {
 		return err
@@ -596,6 +605,9 @@ func (di *defaultImplementation) RecordInstall(
 	switch artifact.Kind {
 	case ArtifactBinary:
 		record.BinPath = filepath.Join(opts.BinDir, artifact.InstallName)
+	case ArtifactArchive:
+		record.BinPath = filepath.Join(opts.BinDir, artifact.InstallName)
+		record.ArchiveEntry = artifact.ArchiveEntry
 	case ArtifactPackage:
 		record.PackageFormat = artifact.PackageFormat
 	}

@@ -67,6 +67,11 @@ type GetOptions struct {
 	// Selector resolves the choice between a binary and a package when a
 	// release offers both for the local system.
 	Selector ArtifactSelector
+
+	// ArchiveEntry pins the path inside the archive of the file to install
+	// when installing from an archive. Updates set it from the inventory
+	// so the choice made when the app was first installed is reused.
+	ArchiveEntry string
 }
 
 type (
@@ -151,6 +156,13 @@ func WithBinDir(dir string) FuncGetOption {
 func WithArtifactSelector(fn ArtifactSelector) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.Selector = fn
+		return nil
+	}
+}
+
+func WithArchiveEntry(entryPath string) FuncGetOption {
+	return func(o *GetOptions) error {
+		o.ArchiveEntry = entryPath
 		return nil
 	}
 }
