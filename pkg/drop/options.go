@@ -73,6 +73,11 @@ type GetOptions struct {
 	// so the choice made when the app was first installed is reused.
 	ArchiveEntry string
 
+	// ArchiveEntryRequired makes a missing or non installable ArchiveEntry
+	// an error instead of falling back to the regular selection. It is set
+	// when the user names the entry explicitly.
+	ArchiveEntryRequired bool
+
 	// EntrySelector chooses the executable to install from an archive when
 	// none is named after the installable.
 	EntrySelector ArchiveEntrySelector
@@ -164,9 +169,25 @@ func WithArtifactSelector(fn ArtifactSelector) FuncGetOption {
 	}
 }
 
+// WithArchiveEntry pins the file to install from an archive, falling back to
+// the regular selection when the archive does not hold it anymore.
 func WithArchiveEntry(entryPath string) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.ArchiveEntry = entryPath
+		o.ArchiveEntryRequired = false
+		return nil
+	}
+}
+
+// WithRequiredArchiveEntry names the file to install from an archive. The
+// installation fails if the archive does not hold an executable at that path.
+func WithRequiredArchiveEntry(entryPath string) FuncGetOption {
+	return func(o *GetOptions) error {
+		if entryPath == "" {
+			return errors.New("archive entry cannot be empty")
+		}
+		o.ArchiveEntry = entryPath
+		o.ArchiveEntryRequired = true
 		return nil
 	}
 }

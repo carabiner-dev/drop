@@ -48,6 +48,11 @@ const (
 	licenseFile  = "LICENSE"
 	licenseText  = "MIT"
 	readmeFile   = "README"
+	bareGz       = "app-linux-amd64.gz"
+	bareEntry    = "app-linux-amd64"
+	toolsName    = "tools"
+	toolsTarGz   = "tools_1.0_linux_amd64.tar.gz"
+	toolsBar     = "tools/bar"
 )
 
 // recorder is a listener that keeps the events it receives
@@ -149,6 +154,7 @@ func TestSelectArchiveEntry(t *testing.T) {
 		entries   []archive.Entry
 		wanted    string
 		pinned    string
+		required  bool
 		os        string
 		expect    string
 		expectErr error
@@ -283,10 +289,37 @@ func TestSelectArchiveEntry(t *testing.T) {
 			entries: []archive.Entry{regular("kubectl", elfContent)},
 			wanted:  k8sClient, pinned: kubectlEntry, os: system.OSLinux, expectErr: ErrNoMatchingArchiveEntry,
 		},
+		{
+			name:    "required-present",
+			entries: []archive.Entry{regular(fooName, elfContent), regular(toolsBar, elfContent)},
+			wanted:  fooName, pinned: toolsBar, required: true, os: system.OSLinux, expect: toolsBar,
+		},
+		{
+			name:    "required-missing-does-not-fall-back",
+			entries: []archive.Entry{regular(fooName, elfContent)},
+			wanted:  fooName, pinned: toolsBar, required: true, os: system.OSLinux, expectErr: ErrBadArchiveEntry,
+		},
+		{
+			name:    "required-not-executable",
+			entries: []archive.Entry{regular(fooName, elfContent), regular(readmeFile, "readme")},
+			wanted:  fooName, pinned: readmeFile, required: true, os: system.OSLinux, expectErr: ErrBadArchiveEntry,
+		},
+		{
+			name:    "required-wrong-platform",
+			entries: []archive.Entry{regular(fooName, elfContent), regular(appExe, peContent)},
+			wanted:  fooName, pinned: appExe, required: true, os: system.OSLinux, expectErr: ErrBadArchiveEntry,
+		},
+		{
+			name:    "required-symlink-is-not-a-file",
+			entries: []archive.Entry{regular(appVersioned, elfContent), symlink(appName, appVersioned)},
+			wanted:  appName, pinned: appName, required: true, os: system.OSLinux, expectErr: ErrBadArchiveEntry,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := selectArchiveEntry(tc.entries, &archiveChoice{wanted: tc.wanted, pinned: tc.pinned, targetOS: tc.os})
+			got, err := selectArchiveEntry(tc.entries, &archiveChoice{
+				archive: appTarGz, wanted: tc.wanted, pinned: tc.pinned, required: tc.required, targetOS: tc.os,
+			})
 			if tc.expectErr != nil {
 				require.ErrorIs(t, err, tc.expectErr)
 				require.Nil(t, got)
@@ -329,6 +362,7 @@ func TestSelectArchiveEntrySelector(t *testing.T) {
 		entries          []archive.Entry
 		wanted           string
 		pinned           string
+		required         bool
 		selector         *fakeSelector
 		expect           string
 		expectCandidates []string
@@ -384,10 +418,15 @@ func TestSelectArchiveEntrySelector(t *testing.T) {
 			selector:  &fakeSelector{choice: readmeFile},
 			expectErr: ErrNoBinaryInArchive,
 		},
+		{
+			name: "not-asked-on-required-miss", entries: several, wanted: k8sClient, pinned: "bin/missing", required: true,
+			selector:  &fakeSelector{choice: kubectlEntry},
+			expectErr: ErrBadArchiveEntry,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			choice := &archiveChoice{archive: hugoTarGz, wanted: tc.wanted, pinned: tc.pinned, targetOS: system.OSLinux}
+			choice := &archiveChoice{archive: hugoTarGz, wanted: tc.wanted, pinned: tc.pinned, required: tc.required, targetOS: system.OSLinux}
 			if tc.selector != nil {
 				choice.selector = tc.selector.fn()
 			}
@@ -419,6 +458,29 @@ func TestSelectArchiveEntrySelector(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAcceptSingleArchiveEntry(t *testing.T) {
+	t.Parallel()
+	chosen, err := AcceptSingleArchiveEntry(hugoTarGz, hugoExtended, []string{hugoName})
+	require.NoError(t, err)
+	require.Equal(t, hugoName, chosen)
+
+	_, err = AcceptSingleArchiveEntry(toolsTarGz, k8sClient, []string{kubectlEntry, kubeadmEntry})
+	require.ErrorIs(t, err, ErrNoMatchingArchiveEntry)
+	require.ErrorContains(t, err, kubectlEntry)
+	require.ErrorContains(t, err, kubeadmEntry)
+
+	_, err = AcceptSingleArchiveEntry(toolsTarGz, k8sClient, nil)
+	require.ErrorIs(t, err, ErrNoMatchingArchiveEntry)
+
+	// Through the selection: a single executable installs without a prompt
+	entries := []archive.Entry{regular(licenseFile, licenseText), regular(hugoName, elfContent)}
+	got, err := selectArchiveEntry(entries, &archiveChoice{
+		archive: hugoTarGz, wanted: hugoExtended, targetOS: system.OSLinux, selector: AcceptSingleArchiveEntry,
+	})
+	require.NoError(t, err)
+	require.Equal(t, hugoName, got.Path)
 }
 
 // tarEntry describes a file to pack in a test archive
@@ -491,6 +553,7 @@ func TestInstallAssetArchive(t *testing.T) {
 		data         []byte
 		artifactName string
 		pinned       string
+		required     bool
 		selector     ArchiveEntrySelector
 		os           string
 		expectFile   string // installed filename, empty means an error is expected
@@ -511,11 +574,11 @@ func TestInstallAssetArchive(t *testing.T) {
 			artifactName: appName, os: system.OSWindows, expectFile: appExe, expectEntry: appExe,
 		},
 		{
-			name: "bare-gz", archiveName: "app-linux-amd64.gz", data: gzipBytes(t, elfContent),
+			name: "bare-gz", archiveName: bareGz, data: gzipBytes(t, elfContent),
 			artifactName: appName, os: system.OSLinux, expectFile: appName, expectEntry: "",
 		},
 		{
-			name: "bare-gz-not-a-binary", archiveName: "app-linux-amd64.gz", data: gzipBytes(t, textContent),
+			name: "bare-gz-not-a-binary", archiveName: bareGz, data: gzipBytes(t, textContent),
 			artifactName: appName, os: system.OSLinux, expectErr: ErrNoBinaryInArchive,
 		},
 		{
@@ -541,6 +604,24 @@ func TestInstallAssetArchive(t *testing.T) {
 			artifactName: hugoExtended, pinned: hugoName, os: system.OSLinux, expectFile: hugoName, expectEntry: hugoName,
 		},
 		{
+			name: "required-entry", archiveName: toolsTarGz,
+			data:         buildTarGz(t, []tarEntry{{name: kubectlEntry, content: elfContent}, {name: kubeadmEntry, content: elfContent}}),
+			artifactName: toolsName, pinned: kubectlEntry, required: true, os: system.OSLinux, expectFile: "kubectl", expectEntry: kubectlEntry,
+		},
+		{
+			name: "required-entry-missing", archiveName: toolsTarGz,
+			data:         buildTarGz(t, []tarEntry{{name: toolsName, content: elfContent}}),
+			artifactName: toolsName, pinned: kubectlEntry, required: true, os: system.OSLinux, expectErr: ErrBadArchiveEntry,
+		},
+		{
+			name: "required-entry-bare-file", archiveName: bareGz, data: gzipBytes(t, elfContent),
+			artifactName: appName, pinned: bareEntry, required: true, os: system.OSLinux, expectFile: appName, expectEntry: "",
+		},
+		{
+			name: "required-entry-bare-file-mismatch", archiveName: bareGz, data: gzipBytes(t, elfContent),
+			artifactName: appName, pinned: "bin/app", required: true, os: system.OSLinux, expectErr: ErrBadArchiveEntry,
+		},
+		{
 			name: "symlinked-binary", archiveName: appTarGz,
 			data:         buildTarGz(t, []tarEntry{{name: appVersioned, content: elfContent}, {name: appName, linkname: appVersioned}}),
 			artifactName: appName, os: system.OSLinux, expectFile: appName, expectEntry: appVersioned,
@@ -551,9 +632,9 @@ func TestInstallAssetArchive(t *testing.T) {
 			artifactName: appName, pinned: appVersioned, os: system.OSLinux, expectFile: appName, expectEntry: appVersioned,
 		},
 		{
-			name: "pinned-under-another-name", archiveName: "tools_1.0_linux_amd64.tar.gz",
+			name: "pinned-under-another-name", archiveName: toolsTarGz,
 			data:         buildTarGz(t, []tarEntry{{name: kubectlEntry, content: elfContent}, {name: kubeadmEntry, content: elfContent}}),
-			artifactName: "tools", pinned: kubeadmEntry, os: system.OSLinux, expectFile: "kubeadm", expectEntry: kubeadmEntry,
+			artifactName: toolsName, pinned: kubeadmEntry, os: system.OSLinux, expectFile: "kubeadm", expectEntry: kubeadmEntry,
 		},
 		{
 			name: "wrong-platform", archiveName: appTarGz, data: buildTarGz(t, layout),
@@ -572,7 +653,10 @@ func TestInstallAssetArchive(t *testing.T) {
 
 			binDir := t.TempDir()
 			events := &recorder{}
-			opts := &GetOptions{BinDir: binDir, OS: tc.os, ArchiveEntry: tc.pinned, EntrySelector: tc.selector}
+			opts := &GetOptions{
+				BinDir: binDir, OS: tc.os, EntrySelector: tc.selector,
+				ArchiveEntry: tc.pinned, ArchiveEntryRequired: tc.required,
+			}
 			opts.Listener = events
 			info := &system.Info{Os: tc.os, Arch: system.ArchAMD64}
 			installName := tc.artifactName
