@@ -21,7 +21,10 @@ import (
 	"github.com/carabiner-dev/hasher"
 	"github.com/carabiner-dev/policy"
 	papi "github.com/carabiner-dev/policy/api/v1"
+	"github.com/carabiner-dev/predicates"
+	intoto "github.com/in-toto/attestation/go/v1"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	util "sigs.k8s.io/release-utils/helpers"
 	"sigs.k8s.io/release-utils/http"
 
@@ -56,6 +59,10 @@ type installerImplementation interface {
 
 	// VerifyAsset verifies that a file complioes with a set of policies
 	VerifyAsset(*Options, []*papi.PolicySet, github.AssetDataProvider, string) (bool, *papi.ResultSet, error)
+
+	// AttestResults writes an attestation of a verification of the named
+	// app's asset and returns the path of the file.
+	AttestResults(*GetOptions, string, github.AssetDataProvider, *papi.ResultSet) (string, error)
 
 	// InstallAsset invokes the system mechanism to set up the downloaded artifact
 	// in the local machine.
@@ -240,9 +247,12 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		return nil, fmt.Errorf("creating collector agent: %w", err)
 	}
 
-	// Now, fetch all policy attestations
+	// Now, fetch all policy set attestations, published under the current
+	// predicate type or the legacy one.
 	attestations, err := agent.FetchAttestationsByPredicateType(
-		context.Background(), []attestation.PredicateType{"https://carabiner.dev/ampel/policyset/v0.0.1"},
+		context.Background(), []attestation.PredicateType{
+			predicates.PredicateTypePolicySet, predicates.PredicateTypePolicySet0,
+		},
 	)
 	// If there were errors fetching attestations, there are two special
 	// cases we want to handle as non-errors:
@@ -280,7 +290,7 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		}
 		pset, err := parser.ParsePolicySet(att.GetStatement().GetPredicate().GetData())
 		if err != nil {
-			logrus.Error("parsing policy set: %w", err)
+			logrus.Errorf("parsing policy set: %v", err)
 			continue
 		}
 		ret = append(ret, pset)
@@ -333,6 +343,58 @@ func (di *defaultImplementation) DownloadAssetToTmp(opts *GetOptions, asset gith
 	return filePath, nil
 }
 
+// assetSubject hashes the downloaded file into the subject descriptor of the
+// verification. The descriptor names the release asset and points at its
+// download URL rather than at the local copy, so the identity carried into
+// policies and attestations is the published artifact, not a temporary file.
+func assetSubject(asset github.AssetDataProvider, filePath string) (*intoto.ResourceDescriptor, error) {
+	res, err := hasher.New().HashFiles([]string{filePath})
+	if err != nil {
+		return nil, fmt.Errorf("hashing file: %w", err)
+	}
+	if len(*res) != 1 {
+		return nil, fmt.Errorf("expected one set of hashes from file, got %d", len(*res))
+	}
+	subject := res.ToResourceDescriptors()[0]
+	if url := asset.GetDownloadURL(); url != "" {
+		subject.Uri = url
+	}
+	if name := asset.GetName(); name != "" {
+		subject.Name = name
+	}
+	return subject, nil
+}
+
+// finalizeResultSet fills in the set level fields the verifier leaves empty
+// when evaluating a list of policy sets: the subject, the evaluation dates
+// and the status. The status follows drop's own verdict (any result other
+// than PASS fails the verification) so attestations built from the set
+// never contradict what drop did. When a single policy set was evaluated
+// it is referenced the way the verifier does when running one.
+func finalizeResultSet(
+	rs *papi.ResultSet, subject *intoto.ResourceDescriptor, policies []*papi.PolicySet,
+	start *timestamppb.Timestamp, passed bool,
+) {
+	rs.Subject = subject
+	rs.Status = papi.StatusFAIL
+	if passed {
+		rs.Status = papi.StatusPASS
+	}
+	if rs.GetDateStart() == nil {
+		rs.DateStart = start
+	}
+	if rs.GetDateEnd() == nil {
+		rs.DateEnd = timestamppb.Now()
+	}
+	if len(policies) == 1 && rs.GetPolicySet() == nil {
+		rs.PolicySet = &papi.PolicyRef{
+			Id:      policies[0].GetId(),
+			Version: policies[0].GetMeta().GetVersion(),
+		}
+		rs.Meta = policies[0].GetMeta()
+	}
+}
+
 func (di *defaultImplementation) VerifyAsset(
 	opts *Options, policies []*papi.PolicySet, asset github.AssetDataProvider, filePath string,
 ) (bool, *papi.ResultSet, error) {
@@ -358,18 +420,16 @@ func (di *defaultImplementation) VerifyAsset(
 		return false, nil, fmt.Errorf("creating new AMPEL verifier: %w", err)
 	}
 
-	// Generate the subject resource descriptors from the file
-	res, err := hasher.New().HashFiles([]string{filePath})
+	// Generate the subject resource descriptor from the file
+	subject, err := assetSubject(asset, filePath)
 	if err != nil {
-		return false, nil, fmt.Errorf("hashing file: %w", err)
-	}
-	if len(*res) != 1 {
-		return false, nil, fmt.Errorf("expected one set of hashes from file, got %d", len(*res))
+		return false, nil, err
 	}
 
 	// Run the artifact verification
+	start := timestamppb.Now()
 	results, err := vrfr.Verify(
-		context.Background(), &verifier.DefaultVerificationOptions, policies, res.ToResourceDescriptors()[0],
+		context.Background(), &verifier.DefaultVerificationOptions, policies, subject,
 	)
 	if err != nil {
 		return false, nil, fmt.Errorf("error running artifact verification: %w", err)
@@ -387,6 +447,7 @@ func (di *defaultImplementation) VerifyAsset(
 			passed = false
 		}
 	}
+	finalizeResultSet(resultSet, subject, policies, start, passed)
 
 	p := "true"
 	if !passed {

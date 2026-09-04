@@ -679,7 +679,7 @@ func TestRecordInstall(t *testing.T) {
 			require.Equal(t, testAppName, record.Name)
 			require.Equal(t, "v0.1.0", record.Version)
 			require.Equal(t, testBinFile, record.Asset)
-			require.Equal(t, map[string]string{"sha256": wantDigest}, record.Digest)
+			require.Equal(t, map[string]string{algoSHA256: wantDigest}, record.Digest)
 			require.False(t, record.InstalledAt.IsZero())
 			tc.check(t, record)
 		})

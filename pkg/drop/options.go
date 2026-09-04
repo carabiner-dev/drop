@@ -6,8 +6,13 @@ package drop
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
+
+	"github.com/carabiner-dev/signer"
+	util "sigs.k8s.io/release-utils/helpers"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
@@ -28,6 +33,18 @@ var defaultGetOptions = GetOptions{
 type Options struct {
 	PolicyRepository string
 	Listener         ProgressListener
+
+	// Attest enables writing an attestation of every verification
+	// performed, in the AttestFormat format.
+	Attest bool
+
+	// AttestFormat is the type of attestation written (see
+	// AttestationFormats).
+	AttestFormat string
+
+	// Signer signs the attestations. When nil, the bare in-toto statement
+	// is written instead.
+	Signer *signer.Signer
 }
 
 type GetOptions struct {
@@ -81,6 +98,11 @@ type GetOptions struct {
 	// EntrySelector chooses the executable to install from an archive when
 	// none is named after the installable.
 	EntrySelector ArchiveEntrySelector
+
+	// AttestationPath is where the attestation of the verification is
+	// written: a file path, a directory (which gets the default filename)
+	// or empty to use the default filename in the download directory.
+	AttestationPath string
 }
 
 type (
@@ -88,11 +110,54 @@ type (
 	FuncGetOption func(*GetOptions) error
 )
 
-// Constructor funcs
+// fileScheme prefixes the locators of local git repositories
+const fileScheme = "file://"
+
+// localPolicyRepository recognizes a local git checkout given as a policy
+// repository: a file:// URL, an absolute path or a path starting with a
+// dot. It returns the file:// locator of the checkout. Repository slugs and
+// URLs are never taken as local paths.
+func localPolicyRepository(spec string) (locator string, local bool, err error) {
+	path := spec
+	switch {
+	case strings.HasPrefix(spec, fileScheme):
+		path = strings.TrimPrefix(spec, fileScheme)
+	case filepath.IsAbs(spec), strings.HasPrefix(spec, "."):
+	default:
+		return "", false, nil
+	}
+
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", true, fmt.Errorf("resolving policy repository path: %w", err)
+	}
+	if !util.IsDir(abs) {
+		return "", true, fmt.Errorf("policy repository %q is not a directory", spec)
+	}
+
+	// Locators need a slash before a windows drive letter
+	slashed := filepath.ToSlash(abs)
+	if !strings.HasPrefix(slashed, "/") {
+		slashed = "/" + slashed
+	}
+	return fileScheme + slashed, true, nil
+}
+
+// WithPolicyRepository sets the repository policies are read from instead of
+// the .ampel repository of the artifact's organization: a GitHub repository
+// (URL or org/repo slug) or a local git checkout given as a file:// URL or
+// a directory path (the committed contents are read, not the working tree).
 func WithPolicyRepository(repoURL string) FuncOption {
 	return func(d *Dropper) error {
 		if repoURL == "" {
 			d.Options.PolicyRepository = ""
+			return nil
+		}
+		if locator, local, err := localPolicyRepository(repoURL); local {
+			if err != nil {
+				return err
+			}
+			d.Options.PolicyRepository = locator
 			return nil
 		}
 		str, err := github.RepoURLFromString(repoURL)
@@ -107,6 +172,31 @@ func WithPolicyRepository(repoURL string) FuncOption {
 func WithListener(listener ProgressListener) FuncOption {
 	return func(d *Dropper) error {
 		d.Options.Listener = listener
+		return nil
+	}
+}
+
+// WithAttestation enables writing an attestation of every verification in
+// the specified format (one of AttestationFormats, the default when empty).
+func WithAttestation(format string) FuncOption {
+	return func(d *Dropper) error {
+		if format == "" {
+			format = DefaultAttestationFormat
+		}
+		if !slices.Contains(AttestationFormats, format) {
+			return fmt.Errorf("%w: %q (valid formats: %v)", ErrInvalidAttestationFormat, format, AttestationFormats)
+		}
+		d.Options.Attest = true
+		d.Options.AttestFormat = format
+		return nil
+	}
+}
+
+// WithSigner sets the signer used to sign attestations. A nil signer
+// writes unsigned statements.
+func WithSigner(s *signer.Signer) FuncOption {
+	return func(d *Dropper) error {
+		d.Options.Signer = s
 		return nil
 	}
 }
@@ -195,6 +285,15 @@ func WithRequiredArchiveEntry(entryPath string) FuncGetOption {
 func WithArchiveEntrySelector(fn ArchiveEntrySelector) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.EntrySelector = fn
+		return nil
+	}
+}
+
+// WithAttestationPath sets where the attestation of the verification is
+// written: a file path, a directory or empty for the default location.
+func WithAttestationPath(path string) FuncGetOption {
+	return func(o *GetOptions) error {
+		o.AttestationPath = path
 		return nil
 	}
 }

@@ -28,6 +28,7 @@ type installOptions struct {
 	Yes         bool
 	Insecure    bool
 	BinDir      string
+	*attestOptions
 }
 
 var installTypes = []string{string(drop.ArtifactBinary), string(drop.ArtifactPackage), string(drop.ArtifactArchive)}
@@ -64,6 +65,10 @@ func (io *installOptions) Validate() error {
 		errs = append(errs, errors.New("binary directory cannot be empty"))
 	}
 
+	if err := io.attestOptions.Validate(io.Insecure); err != nil {
+		errs = append(errs, err)
+	}
+
 	return errors.Join(errs...)
 }
 
@@ -74,7 +79,7 @@ func (io *installOptions) AddFlags(cmd *cobra.Command) {
 	)
 
 	cmd.PersistentFlags().StringVar(
-		&io.PolicyRepo, "policy-repo", "", "alternative repository to use as policy source",
+		&io.PolicyRepo, "policy-repo", "", "alternative policy source: a GitHub repository or the path of a local git checkout",
 	)
 
 	cmd.PersistentFlags().IntVar(
@@ -104,10 +109,12 @@ func (io *installOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(
 		&io.Yes, "yes", "y", false, "never prompt, take the default answer (binary over package, the only executable in an archive)",
 	)
+
+	io.attestOptions.AddFlags(cmd)
 }
 
 func addInstall(parentCmd *cobra.Command) {
-	opts := &installOptions{}
+	opts := &installOptions{attestOptions: defaultAttestOptions()}
 	attCmd := &cobra.Command{
 		Short: "installs a binary or package after verifying it",
 		Long: fmt.Sprintf(`
@@ -147,7 +154,16 @@ choice without prompting:
 Installing to system locations usually requires elevated privileges: drop
 shells out to sudo, which may ask for your password.
 
-`, DropBanner("Download, verify and install apps from GitHub releases"), w2("install"), w2("drop install"), w2("drop install")),
+To keep evidence of the verification, pass --attest and %s writes a
+signed attestation of the policy evaluation to the current directory (or to
+--attestation-out). Choose the type with --attestation-type: the full ampel
+result set (default), a SLSA verification summary (vsa) or an in-toto simple
+verification result (svr). Attestations are signed with sigstore by default,
+using ambient CI credentials when available and asking you to log in
+otherwise; the signing flags select a key or another backend and --sign=false
+writes the bare statement.
+
+`, DropBanner("Download, verify and install apps from GitHub releases"), w2("install"), w2("drop install"), w2("drop install"), w2("drop install")),
 		Use:               "install",
 		Example:           fmt.Sprintf(`%s install github.com/app/repo`, appname),
 		SilenceUsage:      false,
@@ -186,11 +202,20 @@ shells out to sudo, which may ask for your password.
 				lstnr = &drop.NoopListener{}
 			}
 
+			// Attestation options, authenticating the signer up front
+			attestOpts, closeSigner, err := opts.DropperOptions(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer closeSigner()
+
 			// Create the new dropper instance
-			dropper, err := drop.New(
-				drop.WithPolicyRepository(opts.PolicyRepo),
-				drop.WithListener(lstnr),
-			)
+			dropper, err := drop.New(append(
+				[]drop.FuncOption{
+					drop.WithPolicyRepository(opts.PolicyRepo),
+					drop.WithListener(lstnr),
+				}, attestOpts...,
+			)...)
 			if err != nil {
 				return fmt.Errorf("creating dropper: %w", err)
 			}
@@ -200,6 +225,7 @@ shells out to sudo, which may ask for your password.
 				drop.WithVerifyDownloads(!opts.Insecure),
 				drop.WithDownloadType(opts.InstallType),
 				drop.WithBinDir(opts.BinDir),
+				drop.WithAttestationPath(opts.Out),
 			}
 			if opts.Entry != "" {
 				installOpts = append(installOpts, drop.WithRequiredArchiveEntry(opts.Entry))

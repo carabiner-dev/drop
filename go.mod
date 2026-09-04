@@ -4,14 +4,17 @@ go 1.26.5
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/carabiner-dev/ampel v1.3.6
+	github.com/carabiner-dev/ampel v1.3.7
 	github.com/carabiner-dev/attestation v0.2.1
 	github.com/carabiner-dev/collector v0.3.13
 	github.com/carabiner-dev/hasher v0.2.4
 	github.com/carabiner-dev/policy v0.5.3
+	github.com/carabiner-dev/predicates v0.5.0
+	github.com/carabiner-dev/signer v0.6.1
 	github.com/charmbracelet/huh v1.0.0
 	github.com/fatih/color v1.19.0
 	github.com/google/go-github/v60 v60.0.0
+	github.com/in-toto/attestation v1.2.0
 	github.com/klauspost/compress v1.19.2
 	github.com/mattn/go-isatty v0.0.24
 	github.com/rodaine/table v1.3.1
@@ -20,6 +23,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/ulikunitz/xz v0.5.16
 	golang.org/x/oauth2 v0.36.0
+	google.golang.org/protobuf v1.36.12
 	sigs.k8s.io/release-utils v0.12.5-0.20260825061901-4f1f891011bb
 )
 
@@ -28,7 +32,7 @@ require (
 	buf.build/go/protovalidate v1.3.0 // indirect
 	cel.dev/expr v0.25.2 // indirect
 	dario.cat/mergo v1.0.2 // indirect
-	github.com/CycloneDX/cyclonedx-go v0.11.0 // indirect
+	github.com/CycloneDX/cyclonedx-go v0.12.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/anchore/go-struct-converter v0.1.0 // indirect
@@ -45,9 +49,7 @@ require (
 	github.com/carabiner-dev/jsonl v0.2.1 // indirect
 	github.com/carabiner-dev/openeox v1.0.0 // indirect
 	github.com/carabiner-dev/osv v0.1.2 // indirect
-	github.com/carabiner-dev/predicates v0.5.0 // indirect
 	github.com/carabiner-dev/sbomfs v0.2.0 // indirect
-	github.com/carabiner-dev/signer v0.6.1 // indirect
 	github.com/carabiner-dev/spdx3 v0.1.0 // indirect
 	github.com/carabiner-dev/stash v0.0.0-20260716192412-e2fe293d76a5 // indirect
 	github.com/carabiner-dev/vcslocator v0.4.7 // indirect
@@ -108,7 +110,7 @@ require (
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/cel-go v0.30.0 // indirect
+	github.com/google/cel-go v0.31.0 // indirect
 	github.com/google/certificate-transparency-go v1.3.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-containerregistry v0.22.0 // indirect
@@ -118,7 +120,6 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/hjson/hjson-go/v4 v4.7.0 // indirect
-	github.com/in-toto/attestation v1.2.0 // indirect
 	github.com/in-toto/in-toto-golang v0.11.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -144,12 +145,12 @@ require (
 	github.com/openvex/go-vex v0.2.8 // indirect
 	github.com/ossf/osv-schema/bindings/go v0.0.0-20260730052020-9509daabeece // indirect
 	github.com/package-url/packageurl-go v0.1.7 // indirect
-	github.com/pandatix/go-cvss v0.6.2 // indirect
+	github.com/pandatix/go-cvss v0.6.4 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/protobom/cel v0.1.0 // indirect
-	github.com/protobom/protobom v0.6.0 // indirect
+	github.com/protobom/cel v0.1.2 // indirect
+	github.com/protobom/protobom v0.6.1 // indirect
 	github.com/regclient/regclient v0.11.5 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sassoftware/relic/v8 v8.2.0 // indirect
@@ -190,7 +191,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/grpc v1.83.0 // indirect
-	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect

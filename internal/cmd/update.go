@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	util "sigs.k8s.io/release-utils/helpers"
 
 	"github.com/carabiner-dev/drop/internal/notifier"
 	"github.com/carabiner-dev/drop/pkg/drop"
@@ -20,6 +21,20 @@ import (
 type updateOptions struct {
 	Yes   bool
 	Quiet bool
+	*attestOptions
+}
+
+// Validate checks the options. Several apps may be updated, so the
+// attestation output can only be a directory.
+func (uo *updateOptions) Validate() error {
+	errs := []error{}
+	if err := uo.attestOptions.Validate(false); err != nil {
+		errs = append(errs, err)
+	}
+	if uo.Out != "" && util.Exists(uo.Out) && !util.IsDir(uo.Out) {
+		errs = append(errs, errors.New("--attestation-out must be a directory when updating"))
+	}
+	return errors.Join(errs...)
 }
 
 // AddFlags adds the subcommands flags
@@ -31,10 +46,12 @@ func (uo *updateOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(
 		&uo.Quiet, "quiet", "q", false, "less verbose output (for scripts, etc)",
 	)
+
+	uo.attestOptions.AddFlags(cmd)
 }
 
 func addUpdate(parentCmd *cobra.Command) {
-	opts := &updateOptions{}
+	opts := &updateOptions{attestOptions: defaultAttestOptions()}
 	attCmd := &cobra.Command{
 		Short: "updates the apps installed with drop to their latest releases",
 		Long: fmt.Sprintf(`
@@ -53,6 +70,10 @@ of an app's archive changed (the only one found is taken):
 
   drop update -y
 
+Pass --attest to write a signed attestation of each app's verification to
+the current directory (or the directory set with --attestation-out), see
+"drop install --help" for the attestation and signing flags.
+
 `, DropBanner("Update the apps installed with drop"), w2("update"), w2("drop update")),
 		Use:               "update",
 		Example:           fmt.Sprintf("%s update", appname),
@@ -60,6 +81,9 @@ of an app's archive changed (the only one found is taken):
 		SilenceErrors:     true,
 		PersistentPreRunE: initLogging,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := opts.Validate(); err != nil {
+				return err
+			}
 			cmd.SilenceUsage = true
 
 			var lstnr drop.ProgressListener = &notifier.Listener{}
@@ -67,7 +91,20 @@ of an app's archive changed (the only one found is taken):
 				lstnr = &drop.NoopListener{}
 			}
 
-			dropper, err := drop.New(drop.WithListener(lstnr))
+			// Attestation options, authenticating the signer up front
+			attestOpts, closeSigner, err := opts.DropperOptions(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer closeSigner()
+
+			if opts.Out != "" {
+				if err := os.MkdirAll(opts.Out, 0o750); err != nil {
+					return fmt.Errorf("creating attestation directory: %w", err)
+				}
+			}
+
+			dropper, err := drop.New(append([]drop.FuncOption{drop.WithListener(lstnr)}, attestOpts...)...)
 			if err != nil {
 				return fmt.Errorf("creating dropper: %w", err)
 			}
@@ -119,7 +156,7 @@ of an app's archive changed (the only one found is taken):
 
 			// Archives whose layout changed since the app was installed
 			// may need the user to pick the executable again.
-			updateOpts := []drop.FuncGetOption{}
+			updateOpts := []drop.FuncGetOption{drop.WithAttestationPath(opts.Out)}
 			switch {
 			case opts.Yes:
 				updateOpts = append(updateOpts, drop.WithArchiveEntrySelector(drop.AcceptSingleArchiveEntry))

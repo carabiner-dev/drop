@@ -6,6 +6,7 @@ package drop
 const (
 	EventObjectArchive      = "archive"
 	EventObjectAsset        = "asset"
+	EventObjectAttestation  = "attestation"
 	EventObjectInstall      = "install"
 	EventObjectPolicy       = "policy"
 	EventObjectVerification = "verification"
