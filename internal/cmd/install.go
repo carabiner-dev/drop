@@ -25,6 +25,7 @@ type installOptions struct {
 	Entry       string
 	Timeout     int
 	Quiet       bool
+	Yes         bool
 	Insecure    bool
 	BinDir      string
 }
@@ -99,6 +100,10 @@ func (io *installOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(
 		&io.Entry, "entry", "", "path of the executable to install from an archive (implies --type=archive)",
 	)
+
+	cmd.PersistentFlags().BoolVarP(
+		&io.Yes, "yes", "y", false, "never prompt, take the default answer (binary over package, the only executable in an archive)",
+	)
 }
 
 func addInstall(parentCmd *cobra.Command) {
@@ -127,6 +132,10 @@ name the file to install without being asked, pass its path inside the
 archive with --entry:
 
   drop install --entry=kubernetes/client/bin/kubectl github.com/org/repo
+
+In scripts and CI, --yes/-y answers every prompt with its default: the
+binary when a package is also available, and the only executable found in
+an archive. An archive with several executables and no --entry still fails.
 
 When both a binary and a package are available, %s first checks if
 the app is already installed as a package (to keep it managed by the package
@@ -196,10 +205,15 @@ shells out to sudo, which may ask for your password.
 				installOpts = append(installOpts, drop.WithRequiredArchiveEntry(opts.Entry))
 			}
 
-			// When running interactively, let the user choose between a
-			// binary and a package (unless a type was forced) and pick
-			// the executable to install from an archive.
-			if interactive() {
+			// Prompts: with --yes every question gets its default answer
+			// (the library defaults to the binary over a package). When
+			// running interactively, let the user choose between a binary
+			// and a package (unless a type was forced) and pick the
+			// executable to install from an archive.
+			switch {
+			case opts.Yes:
+				installOpts = append(installOpts, drop.WithArchiveEntrySelector(drop.AcceptSingleArchiveEntry))
+			case interactive():
 				if opts.InstallType == "" {
 					installOpts = append(installOpts, drop.WithArtifactSelector(huhSelector()))
 				}

@@ -460,6 +460,29 @@ func TestSelectArchiveEntrySelector(t *testing.T) {
 	}
 }
 
+func TestAcceptSingleArchiveEntry(t *testing.T) {
+	t.Parallel()
+	chosen, err := AcceptSingleArchiveEntry(hugoTarGz, hugoExtended, []string{hugoName})
+	require.NoError(t, err)
+	require.Equal(t, hugoName, chosen)
+
+	_, err = AcceptSingleArchiveEntry(toolsTarGz, k8sClient, []string{kubectlEntry, kubeadmEntry})
+	require.ErrorIs(t, err, ErrNoMatchingArchiveEntry)
+	require.ErrorContains(t, err, kubectlEntry)
+	require.ErrorContains(t, err, kubeadmEntry)
+
+	_, err = AcceptSingleArchiveEntry(toolsTarGz, k8sClient, nil)
+	require.ErrorIs(t, err, ErrNoMatchingArchiveEntry)
+
+	// Through the selection: a single executable installs without a prompt
+	entries := []archive.Entry{regular(licenseFile, licenseText), regular(hugoName, elfContent)}
+	got, err := selectArchiveEntry(entries, &archiveChoice{
+		archive: hugoTarGz, wanted: hugoExtended, targetOS: system.OSLinux, selector: AcceptSingleArchiveEntry,
+	})
+	require.NoError(t, err)
+	require.Equal(t, hugoName, got.Path)
+}
+
 // tarEntry describes a file to pack in a test archive
 type tarEntry struct {
 	name     string

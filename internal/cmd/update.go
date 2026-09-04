@@ -25,7 +25,7 @@ type updateOptions struct {
 // AddFlags adds the subcommands flags
 func (uo *updateOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(
-		&uo.Yes, "yes", "y", false, "update without asking for confirmation",
+		&uo.Yes, "yes", "y", false, "never prompt: update without confirmation and take the default answer to any question",
 	)
 
 	cmd.PersistentFlags().BoolVarP(
@@ -47,7 +47,9 @@ archive), the binaries directory, the file picked from an archive and the
 verification settings.
 
 Before updating, %s prints a summary of the pending updates and
-asks for confirmation. Use --yes/-y to skip the confirmation prompt:
+asks for confirmation. Use --yes/-y to skip the confirmation prompt and
+any other question, such as which executable to install when the layout
+of an app's archive changed (the only one found is taken):
 
   drop update -y
 
@@ -118,7 +120,10 @@ asks for confirmation. Use --yes/-y to skip the confirmation prompt:
 			// Archives whose layout changed since the app was installed
 			// may need the user to pick the executable again.
 			updateOpts := []drop.FuncGetOption{}
-			if interactive() {
+			switch {
+			case opts.Yes:
+				updateOpts = append(updateOpts, drop.WithArchiveEntrySelector(drop.AcceptSingleArchiveEntry))
+			case interactive():
 				updateOpts = append(updateOpts, drop.WithArchiveEntrySelector(huhEntrySelector()))
 			}
 

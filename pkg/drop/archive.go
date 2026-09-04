@@ -37,6 +37,16 @@ var (
 // injects an interactive implementation when running on a terminal.
 type ArchiveEntrySelector func(archiveName, wanted string, candidates []string) (string, error)
 
+// AcceptSingleArchiveEntry is an ArchiveEntrySelector for runs that opted out
+// of prompts: it installs the only executable found in an archive and fails
+// when there are several to choose from.
+func AcceptSingleArchiveEntry(_, wanted string, candidates []string) (string, error) {
+	if len(candidates) == 1 {
+		return candidates[0], nil
+	}
+	return "", fmt.Errorf("%w (%q): found %s", ErrNoMatchingArchiveEntry, wanted, strings.Join(candidates, ", "))
+}
+
 // archiveChoice gathers the inputs to pick the file to install from an archive.
 type archiveChoice struct {
 	// archive is the archive filename, shown when asking the user
