@@ -14,12 +14,26 @@ import (
 
 var w = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
 
+// flagTrue is the value of boolean event data fields when set
+const flagTrue = "true"
+
 // w2 = color.New(color.Faint, color.FgWhite, color.BgBlack).SprintFunc()
 
 type Listener struct{}
 
 func (l *Listener) HandleEvent(event *drop.Event) {
 	switch event.Object {
+	case drop.EventObjectAttestation:
+		switch event.Verb {
+		case drop.EventVerbRunning:
+			signed := "an unsigned"
+			if event.GetDataField("signed") == flagTrue {
+				signed = "a signed"
+			}
+			fmt.Printf("  ✍️  %s\n", w(fmt.Sprintf("Writing %s %s attestation of the verification...", signed, event.GetDataField("format"))))
+		case drop.EventVerbSaved:
+			fmt.Printf("      💾 written to %s\n", event.GetDataField("path"))
+		}
 	case drop.EventObjectArchive:
 		switch event.Verb {
 		case drop.EventVerbRunning:
@@ -73,7 +87,7 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 		switch event.Verb {
 		case drop.EventVerbRunning:
 			sudo := ""
-			if event.GetDataField("sudo") == "true" {
+			if event.GetDataField("sudo") == flagTrue {
 				sudo = " with sudo (you may be asked for your password)"
 			}
 			if event.GetDataField("kind") == string(drop.ArtifactPackage) {
@@ -102,7 +116,7 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 			fmt.Printf("  🚫  %s\n", w("Security verification skipped"))
 		case drop.EventVerbDone:
 			if s := event.GetDataField("passed"); s != "" {
-				if s == "true" {
+				if s == flagTrue {
 					fmt.Println("      ✅  PASS")
 				} else {
 					fmt.Println("      ❌  FAIL")

@@ -27,6 +27,7 @@ type getOptions struct {
 	Quiet        bool
 	Insecure     bool
 	Directory    string
+	*attestOptions
 }
 
 var downloadTypes = []string{"binary", "package", "archive"}
@@ -45,6 +46,10 @@ func (io *getOptions) Validate() error {
 	if io.DownloadType != "" && !slices.Contains(downloadTypes, io.DownloadType) &&
 		io.DownloadType != "a" && io.DownloadType != "b" && io.DownloadType != "p" {
 		errs = append(errs, fmt.Errorf("invalid download type valid types are %v", downloadTypes))
+	}
+
+	if err := io.attestOptions.Validate(io.Insecure); err != nil {
+		errs = append(errs, err)
 	}
 
 	return errors.Join(errs...)
@@ -88,10 +93,12 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVarP(
 		&io.Directory, "directory", "d", ".", "Output directory",
 	)
+
+	io.attestOptions.AddFlags(cmd)
 }
 
 func addGet(parentCmd *cobra.Command) {
-	opts := &getOptions{}
+	opts := &getOptions{attestOptions: defaultAttestOptions()}
 	attCmd := &cobra.Command{
 		Short: "downloads and verifies artifacts from GitHub releases",
 		Long: fmt.Sprintf(`
@@ -134,6 +141,19 @@ with:
 
 %s
 
+To keep evidence of the verification, %s can write a signed attestation
+of the policy evaluation next to the download. Pass --attest to enable it and
+--attestation-type to choose between the full ampel result set (the default),
+a SLSA verification summary (vsa) or an in-toto simple verification result
+(svr). Attestations are signed with sigstore by default, using ambient CI
+credentials when available and asking you to log in otherwise; the signing
+flags select a key or another backend, and --sign=false writes the bare
+statement:
+
+  drop get --attest --attestation-type=vsa github.com/org/repo
+
+%s
+
 All downloads are verified. If you really *really* want to skip the verification
 process, you can add the --insecure flag:
 
@@ -142,7 +162,7 @@ process, you can add the --insecure flag:
 We would of course recommend that you suggest to the organization adding a couple
 of %s policies to secure their releases ✨
 
-`, DropBanner("Download and verify artifacts from GitHub releases"), w2("get"), w("SPECIFYING A DOWNLOAD"), w2("drop get"), w2("ls"), w2("drop get"), w("⚠️ Skipping Verification"), AmpelBanner(""),
+`, DropBanner("Download and verify artifacts from GitHub releases"), w2("get"), w("SPECIFYING A DOWNLOAD"), w2("drop get"), w2("ls"), w2("drop get"), w("ATTESTING THE VERIFICATION"), w2("drop get"), w("⚠️ Skipping Verification"), AmpelBanner(""),
 		),
 		Use:               "get",
 		Example:           fmt.Sprintf(`%s get github.com/app/repo`, appname),
@@ -194,11 +214,20 @@ of %s policies to secure their releases ✨
 				lstnr = &drop.NoopListener{}
 			}
 
+			// Attestation options, authenticating the signer up front
+			attestOpts, closeSigner, err := opts.DropperOptions(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer closeSigner()
+
 			// Create the new dropper instance
-			dropper, err := drop.New(
-				drop.WithPolicyRepository(opts.PolicyRepo),
-				drop.WithListener(lstnr),
-			)
+			dropper, err := drop.New(append(
+				[]drop.FuncOption{
+					drop.WithPolicyRepository(opts.PolicyRepo),
+					drop.WithListener(lstnr),
+				}, attestOpts...,
+			)...)
 			if err != nil {
 				return fmt.Errorf("cerating dropper: %w", err)
 			}
@@ -211,6 +240,7 @@ of %s policies to secure their releases ✨
 				drop.WithPlatform(opts.Platform),
 				drop.WithVerifyDownloads(!opts.Insecure),
 				drop.WithDownloadType(opts.DownloadType),
+				drop.WithAttestationPath(opts.Out),
 			); err != nil {
 				return fmt.Errorf("error downloading: %w", err)
 			}
