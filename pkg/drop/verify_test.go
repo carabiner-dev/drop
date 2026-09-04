@@ -38,7 +38,7 @@ func TestAssetSubject(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, testBinFile, subject.GetName(), "the subject is named after the asset")
 		require.Equal(t, asset.DownloadURL, subject.GetUri(), "the subject points at the release, not the local copy")
-		require.Equal(t, wantDigest, subject.GetDigest()["sha256"])
+		require.Equal(t, wantDigest, subject.GetDigest()[algoSHA256])
 		require.Contains(t, subject.GetDigest(), "sha512")
 	})
 
@@ -48,7 +48,7 @@ func TestAssetSubject(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "drop", subject.GetName())
 		require.Equal(t, filePath, subject.GetUri())
-		require.Equal(t, wantDigest, subject.GetDigest()["sha256"])
+		require.Equal(t, wantDigest, subject.GetDigest()[algoSHA256])
 	})
 
 	t.Run("missing-file", func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestFinalizeResultSet(t *testing.T) {
 	subject := &intoto.ResourceDescriptor{
 		Name:   testBinFile,
 		Uri:    "https://example.com/" + testBinFile,
-		Digest: map[string]string{"sha256": "abc"},
+		Digest: map[string]string{algoSHA256: "abc"},
 	}
 	policySet := func(id string, version int64) *papi.PolicySet {
 		return &papi.PolicySet{Id: id, Meta: &papi.PolicySetMeta{Version: version}}

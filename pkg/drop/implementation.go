@@ -59,6 +59,10 @@ type installerImplementation interface {
 	// VerifyAsset verifies that a file complioes with a set of policies
 	VerifyAsset(*Options, []*papi.PolicySet, github.AssetDataProvider, string) (bool, *papi.ResultSet, error)
 
+	// AttestResults writes an attestation of a verification of the named
+	// app's asset and returns the path of the file.
+	AttestResults(*GetOptions, string, github.AssetDataProvider, *papi.ResultSet) (string, error)
+
 	// InstallAsset invokes the system mechanism to set up the downloaded artifact
 	// in the local machine.
 	InstallAsset(*GetOptions, *system.Info, *InstallArtifact, string) error

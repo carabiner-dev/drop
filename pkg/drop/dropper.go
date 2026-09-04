@@ -94,10 +94,18 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 			&Event{Object: EventObjectVerification, Verb: EventVerbSkipped},
 		)
 	} else {
-		ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
+		ok, resultSet, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
 		if err != nil {
 			_ = os.Remove(downloadPath) //nolint:errcheck
 			return fmt.Errorf("error verifying asset: %w", err)
+		}
+
+		// The verification is attested whatever its outcome
+		if opts.Attest {
+			if _, err := dropper.impl.AttestResults(&opts, specName(spec), asset, resultSet); err != nil {
+				_ = os.Remove(downloadPath) //nolint:errcheck
+				return fmt.Errorf("attesting verification: %w", err)
+			}
 		}
 
 		// If verification failed, we're done
@@ -110,7 +118,7 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 	opts.Listener.HandleEvent(
 		&Event{
 			Object: EventObjectAsset, Verb: EventVerbSaved,
-			Data: map[string]string{"path": downloadPath},
+			Data: map[string]string{dataKeyPath: downloadPath},
 		},
 	)
 
@@ -168,9 +176,17 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetO
 			&Event{Object: EventObjectVerification, Verb: EventVerbSkipped},
 		)
 	} else {
-		ok, _, err := dropper.impl.VerifyAsset(&dropper.Options, policies, artifact.Asset, downloadPath)
+		ok, resultSet, err := dropper.impl.VerifyAsset(&dropper.Options, policies, artifact.Asset, downloadPath)
 		if err != nil {
 			return fmt.Errorf("error verifying asset: %w", err)
+		}
+
+		// The verification is attested whatever its outcome. The file
+		// lands outside the temporary download directory.
+		if opts.Attest {
+			if _, err := dropper.impl.AttestResults(&opts, installableName(artifact), artifact.Asset, resultSet); err != nil {
+				return fmt.Errorf("attesting verification: %w", err)
+			}
 		}
 
 		// If verification failed, we're done

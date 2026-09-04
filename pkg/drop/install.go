@@ -50,6 +50,7 @@ const (
 
 	dataKeyKind = "kind"
 	dataKeyName = "name"
+	dataKeyPath = "path"
 	dataKeySudo = "sudo"
 )
 
@@ -447,6 +448,16 @@ func copyFile(src, dst string, mode os.FileMode) error {
 	return os.Chmod(dst, mode)
 }
 
+// installableName returns the name of the app an artifact belongs to. It
+// keys the inventory and names attestations. Artifacts built by hand may
+// only carry the file name, in which case it is derived from there.
+func installableName(artifact *InstallArtifact) string {
+	if artifact.Name != "" {
+		return artifact.Name
+	}
+	return strings.TrimSuffix(artifact.InstallName, exeSuffix)
+}
+
 // specName returns the name of the artifact a spec points to, defaulting to
 // the repository name when the spec does not pin an asset name.
 func specName(spec github.AssetDataProvider) string {
@@ -607,7 +618,7 @@ func (di *defaultImplementation) installBinary(
 		Data: map[string]string{
 			dataKeyKind: string(ArtifactBinary),
 			dataKeyName: artifact.InstallName,
-			"path":      target,
+			dataKeyPath: target,
 		},
 	})
 	return nil
@@ -652,18 +663,11 @@ func (di *defaultImplementation) RecordInstall(
 		return err
 	}
 
-	// The record is keyed by the installable name. Artifacts built by hand
-	// may only carry the file name, derive it from there.
-	name := artifact.Name
-	if name == "" {
-		name = strings.TrimSuffix(artifact.InstallName, exeSuffix)
-	}
-
 	record := &inventory.Record{
 		Host:     artifact.Asset.GetHost(),
 		Org:      artifact.Asset.GetOrg(),
 		Repo:     artifact.Asset.GetRepo(),
-		Name:     name,
+		Name:     installableName(artifact),
 		Version:  artifact.Asset.GetVersion(),
 		Kind:     string(artifact.Kind),
 		Asset:    artifact.Asset.GetName(),
