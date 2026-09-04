@@ -21,6 +21,7 @@ import (
 	"github.com/carabiner-dev/hasher"
 	"github.com/carabiner-dev/policy"
 	papi "github.com/carabiner-dev/policy/api/v1"
+	"github.com/carabiner-dev/predicates"
 	intoto "github.com/in-toto/attestation/go/v1"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -246,9 +247,12 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		return nil, fmt.Errorf("creating collector agent: %w", err)
 	}
 
-	// Now, fetch all policy attestations
+	// Now, fetch all policy set attestations, published under the current
+	// predicate type or the legacy one.
 	attestations, err := agent.FetchAttestationsByPredicateType(
-		context.Background(), []attestation.PredicateType{"https://carabiner.dev/ampel/policyset/v0.0.1"},
+		context.Background(), []attestation.PredicateType{
+			predicates.PredicateTypePolicySet, predicates.PredicateTypePolicySet0,
+		},
 	)
 	// If there were errors fetching attestations, there are two special
 	// cases we want to handle as non-errors:
@@ -286,7 +290,7 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		}
 		pset, err := parser.ParsePolicySet(att.GetStatement().GetPredicate().GetData())
 		if err != nil {
-			logrus.Error("parsing policy set: %w", err)
+			logrus.Errorf("parsing policy set: %v", err)
 			continue
 		}
 		ret = append(ret, pset)
