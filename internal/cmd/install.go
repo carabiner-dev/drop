@@ -22,6 +22,7 @@ type installOptions struct {
 	AppUrl      string
 	PolicyRepo  string
 	InstallType string
+	Entry       string
 	Timeout     int
 	Quiet       bool
 	Insecure    bool
@@ -45,6 +46,17 @@ func (io *installOptions) Validate() error {
 	case "", "b", "p", "a", string(drop.ArtifactBinary), string(drop.ArtifactPackage), string(drop.ArtifactArchive):
 	default:
 		errs = append(errs, fmt.Errorf("invalid install type, valid types are %v", installTypes))
+	}
+
+	// Naming an archive entry only makes sense when installing from one
+	if io.Entry != "" {
+		switch io.InstallType {
+		case "":
+			io.InstallType = string(drop.ArtifactArchive)
+		case "a", string(drop.ArtifactArchive):
+		default:
+			errs = append(errs, errors.New("--entry can only be used when installing from an archive"))
+		}
 	}
 
 	if io.BinDir == "" {
@@ -83,6 +95,10 @@ func (io *installOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(
 		&io.BinDir, "bin-dir", "/usr/local/bin", "directory to install binaries into",
 	)
+
+	cmd.PersistentFlags().StringVar(
+		&io.Entry, "entry", "", "path of the executable to install from an archive (implies --type=archive)",
+	)
 }
 
 func addInstall(parentCmd *cobra.Command) {
@@ -106,7 +122,11 @@ or bare gz/xz/zst/bz2 files) are installed too: after verifying the archive,
 drop extracts the executable named after the app and installs it like a bare
 binary. When the archive has no executable by that name, drop asks which one
 to install and remembers the choice for updates. Bare binaries are preferred
-over archives; use --type=archive to install from the archive anyway.
+over archives; use --type=archive to install from the archive anyway. To
+name the file to install without being asked, pass its path inside the
+archive with --entry:
+
+  drop install --entry=kubernetes/client/bin/kubectl github.com/org/repo
 
 When both a binary and a package are available, %s first checks if
 the app is already installed as a package (to keep it managed by the package
@@ -172,6 +192,9 @@ shells out to sudo, which may ask for your password.
 				drop.WithDownloadType(opts.InstallType),
 				drop.WithBinDir(opts.BinDir),
 			}
+			if opts.Entry != "" {
+				installOpts = append(installOpts, drop.WithRequiredArchiveEntry(opts.Entry))
+			}
 
 			// When running interactively, let the user choose between a
 			// binary and a package (unless a type was forced) and pick
@@ -192,7 +215,7 @@ shells out to sudo, which may ask for your password.
 				case errors.Is(err, drop.ErrOnlyArchives), errors.Is(err, drop.ErrNoInstallableArtifact):
 					return fmt.Errorf("%w (try downloading with \"drop get\")", err)
 				case errors.Is(err, drop.ErrNoMatchingArchiveEntry):
-					return fmt.Errorf("%w (run interactively to choose which one to install)", err)
+					return fmt.Errorf("%w (pick one with --entry or run interactively)", err)
 				}
 				return fmt.Errorf("error installing: %w", err)
 			}

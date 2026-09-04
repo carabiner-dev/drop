@@ -24,6 +24,10 @@ var (
 	// ErrNoMatchingArchiveEntry is returned when an archive ships executables
 	// but none is named after the installable.
 	ErrNoMatchingArchiveEntry = errors.New("no executable named after the installable in the archive")
+
+	// ErrBadArchiveEntry is returned when the entry the user asked for is
+	// not in the archive or is not an executable for the platform.
+	ErrBadArchiveEntry = errors.New("requested archive entry cannot be installed")
 )
 
 // ArchiveEntrySelector chooses which executable inside an archive to install
@@ -41,8 +45,13 @@ type archiveChoice struct {
 	// wanted is the installable name
 	wanted string
 
-	// pinned is the entry recorded by a previous install of the app
+	// pinned is the entry recorded by a previous install of the app, or
+	// the one the user asked for
 	pinned string
+
+	// required makes a pinned entry that cannot be installed an error
+	// instead of falling back to the regular selection
+	required bool
 
 	// targetOS is the platform the binary must run on
 	targetOS string
@@ -195,17 +204,43 @@ func matchByName(entries, candidates []archive.Entry, wanted, targetOS string) *
 	return best
 }
 
+// entryNames lists the paths of a set of entries for messages
+func entryNames(entries []archive.Entry) string {
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Path)
+	}
+	return strings.Join(names, ", ")
+}
+
+// checkRequiredEntry explains why a required entry cannot be installed.
+func checkRequiredEntry(entries, candidates []archive.Entry, choice *archiveChoice) error {
+	if findEntry(entries, choice.pinned) == nil {
+		return fmt.Errorf(
+			"%w: %q not found in %s (executables found: %s)",
+			ErrBadArchiveEntry, choice.pinned, choice.archive, entryNames(candidates),
+		)
+	}
+	return fmt.Errorf(
+		"%w: %q in %s is not a %s executable",
+		ErrBadArchiveEntry, choice.pinned, choice.archive, choice.targetOS,
+	)
+}
+
 // selectArchiveEntry picks the file to install from the contents of an
 // archive: the pinned entry when it is present and installable, otherwise
 // the executable named after the installable. When neither applies the
 // selector is asked to choose among the executables found; without one the
-// error lists them.
+// error lists them. A required pinned entry never falls back.
 func selectArchiveEntry(entries []archive.Entry, choice *archiveChoice) (*archive.Entry, error) {
 	candidates := archiveCandidates(entries, choice.targetOS)
 
 	if choice.pinned != "" {
 		if e := findEntry(candidates, choice.pinned); e != nil {
 			return e, nil
+		}
+		if choice.required {
+			return nil, checkRequiredEntry(entries, candidates, choice)
 		}
 	}
 
@@ -216,15 +251,15 @@ func selectArchiveEntry(entries []archive.Entry, choice *archiveChoice) (*archiv
 	if len(candidates) == 0 {
 		return nil, ErrNoBinaryInArchive
 	}
+
+	if choice.selector == nil {
+		return nil, fmt.Errorf("%w (%q): found %s", ErrNoMatchingArchiveEntry, choice.wanted, entryNames(candidates))
+	}
+
 	names := make([]string, 0, len(candidates))
 	for _, c := range candidates {
 		names = append(names, c.Path)
 	}
-
-	if choice.selector == nil {
-		return nil, fmt.Errorf("%w (%q): found %s", ErrNoMatchingArchiveEntry, choice.wanted, strings.Join(names, ", "))
-	}
-
 	chosen, err := choice.selector(choice.archive, choice.wanted, names)
 	if err != nil {
 		return nil, fmt.Errorf("choosing the file to install from %s: %w", choice.archive, err)
@@ -247,6 +282,15 @@ func (di *defaultImplementation) installArchive(
 	}
 
 	archiveName := filepath.Base(archivePath)
+	choice := &archiveChoice{
+		archive:  archiveName,
+		wanted:   artifact.Name,
+		pinned:   opts.ArchiveEntry,
+		required: opts.ArchiveEntryRequired,
+		targetOS: opts.OS,
+		selector: opts.EntrySelector,
+	}
+
 	var entry *archive.Entry
 	if format.Container == "" {
 		// A bare compressed file holds nothing but the binary, which
@@ -255,15 +299,12 @@ func (di *defaultImplementation) installArchive(
 		if len(candidates) == 0 {
 			return ErrNoBinaryInArchive
 		}
+		if choice.required && choice.pinned != candidates[0].Path {
+			return checkRequiredEntry(entries, candidates, choice)
+		}
 		entry = &candidates[0]
 	} else {
-		entry, err = selectArchiveEntry(entries, &archiveChoice{
-			archive:  archiveName,
-			wanted:   artifact.Name,
-			pinned:   opts.ArchiveEntry,
-			targetOS: opts.OS,
-			selector: opts.EntrySelector,
-		})
+		entry, err = selectArchiveEntry(entries, choice)
 		if err != nil {
 			return err
 		}
