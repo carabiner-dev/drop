@@ -43,7 +43,8 @@ type Record struct {
 	// Version is the release tag the installed artifact came from.
 	Version string `json:"version"`
 
-	// Kind is the artifact type that was installed (binary or package).
+	// Kind is the artifact type that was installed (binary, package or
+	// archive).
 	Kind string `json:"kind"`
 
 	// Asset is the exact release asset that was downloaded.
@@ -55,8 +56,14 @@ type Record struct {
 	// manager and the digest ties the record to the verified file.
 	Digest map[string]string `json:"digest,omitempty"`
 
-	// BinPath is the path where the binary was installed (binaries only).
+	// BinPath is the path where the binary was installed (binaries and
+	// archives only).
 	BinPath string `json:"binPath,omitempty"`
+
+	// ArchiveEntry is the path inside the release archive of the file that
+	// was installed (archives only). Updates reuse it to pick the same
+	// file without asking again.
+	ArchiveEntry string `json:"archiveEntry,omitempty"`
 
 	// PackageFormat is the package type handed to the package manager
 	// (packages only).

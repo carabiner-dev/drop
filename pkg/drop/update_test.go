@@ -47,11 +47,13 @@ func TestVersionIsNewer(t *testing.T) {
 
 func TestUpdateInstallOptions(t *testing.T) {
 	t.Parallel()
+	const testToolsDir = "/opt/tools"
 	for _, tc := range []struct {
 		name             string
 		record           *inventory.Record
 		expectType       string
 		expectBinDir     string
+		expectEntry      string
 		expectSkipVerify bool
 	}{
 		{
@@ -59,7 +61,7 @@ func TestUpdateInstallOptions(t *testing.T) {
 			record: &inventory.Record{
 				Kind: string(ArtifactBinary), BinPath: "/opt/tools/cosign", Verified: true,
 			},
-			expectType: "b", expectBinDir: "/opt/tools", expectSkipVerify: false,
+			expectType: "b", expectBinDir: testToolsDir, expectSkipVerify: false,
 		},
 		{
 			name: "unverified-binary-default-dir",
@@ -75,6 +77,20 @@ func TestUpdateInstallOptions(t *testing.T) {
 			},
 			expectType: "p", expectBinDir: "", expectSkipVerify: false,
 		},
+		{
+			name: "archive-record",
+			record: &inventory.Record{
+				Kind: string(ArtifactArchive), BinPath: "/opt/tools/gh", ArchiveEntry: "gh_2.0/bin/gh", Verified: true,
+			},
+			expectType: "a", expectBinDir: testToolsDir, expectEntry: "gh_2.0/bin/gh", expectSkipVerify: false,
+		},
+		{
+			name: "archive-bare-file",
+			record: &inventory.Record{
+				Kind: string(ArtifactArchive), BinPath: "/opt/tools/gh", Verified: false,
+			},
+			expectType: "a", expectBinDir: testToolsDir, expectEntry: "", expectSkipVerify: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -85,6 +101,7 @@ func TestUpdateInstallOptions(t *testing.T) {
 			require.Equal(t, tc.expectType, opts.DownloadType)
 			// filepath.Dir returns OS-native separators on windows
 			require.Equal(t, filepath.FromSlash(tc.expectBinDir), opts.BinDir)
+			require.Equal(t, tc.expectEntry, opts.ArchiveEntry)
 			require.Equal(t, tc.expectSkipVerify, opts.SkipVerification)
 		})
 	}

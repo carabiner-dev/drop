@@ -42,8 +42,9 @@ func addUpdate(parentCmd *cobra.Command) {
 
 The %s subcommand checks the apps installed with drop for newer
 releases and reinstalls those with updates available, reusing the choices
-made when each app was installed: the artifact kind (binary or package),
-the binaries directory and the verification settings.
+made when each app was installed: the artifact kind (binary, package or
+archive), the binaries directory, the file picked from an archive and the
+verification settings.
 
 Before updating, %s prints a summary of the pending updates and
 asks for confirmation. Use --yes/-y to skip the confirmation prompt:
@@ -114,10 +115,21 @@ asks for confirmation. Use --yes/-y to skip the confirmation prompt:
 				return nil
 			}
 
+			// Archives whose layout changed since the app was installed
+			// may need the user to pick the executable again.
+			updateOpts := []drop.FuncGetOption{}
+			if interactive() {
+				updateOpts = append(updateOpts, drop.WithArchiveEntrySelector(huhEntrySelector()))
+			}
+
 			errs := []error{}
 			for _, status := range updates {
 				fmt.Printf("\n⬆️  Updating %s to %s:\n", w(status.Record.Name), status.LatestVersion)
-				if err := dropper.Update(status); err != nil {
+				if err := dropper.Update(status, updateOpts...); err != nil {
+					if errors.Is(err, drop.ErrInstallAborted) {
+						fmt.Printf("  ⏭️  %s left at %s\n", status.Record.Name, status.Record.Version)
+						continue
+					}
 					fmt.Printf("  ❌ updating %s failed: %v\n", status.Record.Name, err)
 					errs = append(errs, fmt.Errorf("updating %s: %w", status.Record.Name, err))
 				}

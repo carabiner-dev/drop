@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,7 +24,7 @@ import (
 
 var (
 	ErrNoInstallableArtifact = errors.New("release has no binary or compatible package for this platform")
-	ErrOnlyArchives          = errors.New("release only ships archives for this platform")
+	ErrOnlyArchives          = errors.New("release only ships archives in unsupported formats for this platform")
 )
 
 // ArtifactKind distinguishes the kinds of artifacts the installer can handle.
@@ -32,6 +33,7 @@ type ArtifactKind string
 const (
 	ArtifactBinary  ArtifactKind = "binary"
 	ArtifactPackage ArtifactKind = "package"
+	ArtifactArchive ArtifactKind = "archive"
 )
 
 // Command and filename constants used when installing artifacts
@@ -53,7 +55,7 @@ const (
 
 // InstallArtifact is a concrete release asset chosen for installation.
 type InstallArtifact struct {
-	// Kind is the artifact type, binary or package.
+	// Kind is the artifact type: binary, package or archive.
 	Kind ArtifactKind
 
 	// PackageFormat is the package type (rpm, deb, apk) when Kind is package.
@@ -62,8 +64,19 @@ type InstallArtifact struct {
 	// Asset is the release asset variant to download.
 	Asset *github.Asset
 
+	// Name is the installable name identifying the app. It keys the app in
+	// the inventory and is the name updates look up in newer releases.
+	Name string
+
 	// InstallName is the name the binary gets when installed into the path.
+	// It usually matches Name (plus .exe on windows) but can differ when
+	// the installed file is not named after the installable.
 	InstallName string
+
+	// ArchiveEntry is the path inside the archive of the installed file
+	// when Kind is archive. It is filled in once the archive is inspected
+	// and stays empty for bare compressed files.
+	ArchiveEntry string
 }
 
 // ArtifactSelector resolves an ambiguous choice between install candidates.
@@ -73,10 +86,58 @@ type ArtifactSelector func(candidates []*InstallArtifact) (*InstallArtifact, err
 // installCandidates is the classified view of an installable's variants
 // for a single platform.
 type installCandidates struct {
-	Binary      *InstallArtifact
-	Package     *InstallArtifact
-	HasArchives bool
+	// Binary is the bare binary for the platform
+	Binary *InstallArtifact
+
+	// Archive is the preferred archive holding a binary for the platform
+	Archive *InstallArtifact
+
+	// Package is the system package matching the local package format
+	Package *InstallArtifact
+
+	// HasOtherArchive flags archives in formats drop cannot extract
+	HasOtherArchive bool
+
+	// HasOtherPkg flags packages in formats the local system does not use
 	HasOtherPkg bool
+}
+
+// installableArchiveTypes lists the archive types drop can extract binaries
+// from, in order of preference when a release ships several for the same
+// platform.
+var installableArchiveTypes = []string{
+	system.ArchiveTgz, system.ArchiveTxz, system.ArchiveTzst, system.ArchiveZip,
+	system.ArchiveTbz, system.ArchiveTar, system.ArchiveGz, system.ArchiveXz,
+	system.ArchiveZst, system.ArchiveBz2,
+}
+
+// archiveRank returns the preference of an archive type (lower is better)
+// or -1 when drop cannot install from it.
+func archiveRank(archiveType string) int {
+	return slices.Index(installableArchiveTypes, archiveType)
+}
+
+// preferArchive reports if an archive asset makes a better install candidate
+// than the current one: a better ranked format first, then the shortest
+// filename, which tends to be the canonical variant.
+func preferArchive(current *InstallArtifact, filename, archiveType string) bool {
+	if current == nil {
+		return true
+	}
+	currentRank := archiveRank(system.ArchiveExtensions.GetTypeFromFile(current.Asset.GetName()))
+	if rank := archiveRank(archiveType); rank != currentRank {
+		return rank < currentRank
+	}
+	return len(filename) < len(current.Asset.GetName())
+}
+
+// binaryFileName returns the name a binary gets in the bin dir: the
+// installable name, with the .exe extension on windows.
+func binaryFileName(name, osName string) string {
+	if osName == system.OSWindows && !strings.HasSuffix(name, exeSuffix) {
+		return name + exeSuffix
+	}
+	return name
 }
 
 // metadataSuffixes are extensions of files published along release artifacts
@@ -100,8 +161,8 @@ func isMetadataFile(name string) bool {
 }
 
 // classifyInstallCandidates inspects an installable's variants for the given
-// platform and classifies them into a binary candidate and a package candidate
-// matching the system's package format.
+// platform and classifies them into a binary candidate, an archive candidate
+// and a package candidate matching the system's package format.
 func classifyInstallCandidates(inst *github.Installable, osName, arch, pkgFormat string) *installCandidates {
 	cands := &installCandidates{}
 	for _, variant := range inst.Variants {
@@ -114,7 +175,17 @@ func classifyInstallCandidates(inst *github.Installable, osName, arch, pkgFormat
 
 		switch {
 		case archiveType != "":
-			cands.HasArchives = true
+			if archiveRank(archiveType) < 0 {
+				cands.HasOtherArchive = true
+				continue
+			}
+			if !preferArchive(cands.Archive, variant.GetName(), archiveType) {
+				continue
+			}
+			cands.Archive = &InstallArtifact{
+				Kind: ArtifactArchive, Asset: variant,
+				Name: inst.GetName(), InstallName: binaryFileName(inst.GetName(), variant.Os),
+			}
 		case packageType == "":
 			// Signatures, SBOMs and other metadata files also carry
 			// platform markers in their names but are not installable.
@@ -127,17 +198,14 @@ func classifyInstallCandidates(inst *github.Installable, osName, arch, pkgFormat
 			if cands.Binary != nil && len(cands.Binary.Asset.GetName()) <= len(variant.GetName()) {
 				continue
 			}
-			name := inst.GetName()
-			if variant.Os == system.OSWindows {
-				name += exeSuffix
-			}
 			cands.Binary = &InstallArtifact{
-				Kind: ArtifactBinary, Asset: variant, InstallName: name,
+				Kind: ArtifactBinary, Asset: variant,
+				Name: inst.GetName(), InstallName: binaryFileName(inst.GetName(), variant.Os),
 			}
 		case pkgFormat != "" && packageType == pkgFormat:
 			cands.Package = &InstallArtifact{
 				Kind: ArtifactPackage, PackageFormat: packageType,
-				Asset: variant, InstallName: inst.GetName(),
+				Asset: variant, Name: inst.GetName(), InstallName: inst.GetName(),
 			}
 		default:
 			cands.HasOtherPkg = true
@@ -147,40 +215,57 @@ func classifyInstallCandidates(inst *github.Installable, osName, arch, pkgFormat
 }
 
 // classifySingleAsset builds an install artifact from a single concrete asset,
-// for when the user pinned an exact file instead of an installable.
-func classifySingleAsset(asset *github.Asset, installName, pkgFormat string) (*InstallArtifact, error) {
-	name := asset.GetName()
-	if system.ArchiveExtensions.GetTypeFromFile(name) != "" {
-		return nil, ErrOnlyArchives
+// for when the user pinned an exact file instead of an installable. The
+// artifact is recorded under name, the installable name the asset belongs to.
+func classifySingleAsset(asset *github.Asset, name, pkgFormat string) (*InstallArtifact, error) {
+	filename := asset.GetName()
+	appName := strings.TrimSuffix(name, exeSuffix)
+	if archiveType := system.ArchiveExtensions.GetTypeFromFile(filename); archiveType != "" {
+		if archiveRank(archiveType) < 0 {
+			return nil, ErrOnlyArchives
+		}
+		return &InstallArtifact{
+			Kind: ArtifactArchive, Asset: asset,
+			Name: appName, InstallName: binaryFileName(name, asset.Os),
+		}, nil
 	}
-	if pkgType := system.PackageExtensions.GetTypeFromFile(name); pkgType != "" {
+	if pkgType := system.PackageExtensions.GetTypeFromFile(filename); pkgType != "" {
 		if pkgFormat == "" || pkgType != pkgFormat {
 			return nil, ErrNoInstallableArtifact
 		}
 		return &InstallArtifact{
 			Kind: ArtifactPackage, PackageFormat: pkgType,
-			Asset: asset, InstallName: installName,
+			Asset: asset, Name: appName, InstallName: name,
 		}, nil
 	}
-	if asset.Os == system.OSWindows && !strings.HasSuffix(installName, exeSuffix) {
-		installName += exeSuffix
-	}
 	return &InstallArtifact{
-		Kind: ArtifactBinary, Asset: asset, InstallName: installName,
+		Kind: ArtifactBinary, Asset: asset, Name: appName, InstallName: binaryFileName(name, asset.Os),
 	}, nil
 }
 
 // decideArtifact applies the install selection algorithm: honor a forced type,
 // use the only candidate available, stay with the package manager when the app
 // is already installed as a package, otherwise ask the selector (or default to
-// the binary when running non-interactively).
+// the binary when running non-interactively). An archive is a binary source:
+// it stands in for the bare binary when the release ships none, and can be
+// forced with the archive type even when a bare binary exists.
 func decideArtifact(c *installCandidates, opts *GetOptions, pkgInstalled func(name string) bool) (*InstallArtifact, error) {
+	binary := c.Binary
+	if binary == nil {
+		binary = c.Archive
+	}
+
 	switch opts.DownloadType {
+	case "a":
+		if c.Archive == nil {
+			return nil, fmt.Errorf("no installable archive available: %w", ErrNoInstallableArtifact)
+		}
+		return c.Archive, nil
 	case "b":
-		if c.Binary == nil {
+		if binary == nil {
 			return nil, fmt.Errorf("no binary available: %w", ErrNoInstallableArtifact)
 		}
-		return c.Binary, nil
+		return binary, nil
 	case "p":
 		if c.Package == nil {
 			return nil, fmt.Errorf("no package in the system format available: %w", ErrNoInstallableArtifact)
@@ -189,14 +274,14 @@ func decideArtifact(c *installCandidates, opts *GetOptions, pkgInstalled func(na
 	}
 
 	switch {
-	case c.Binary == nil && c.Package == nil:
-		if c.HasArchives {
+	case binary == nil && c.Package == nil:
+		if c.HasOtherArchive {
 			return nil, ErrOnlyArchives
 		}
 		return nil, ErrNoInstallableArtifact
 	case c.Package == nil:
-		return c.Binary, nil
-	case c.Binary == nil:
+		return binary, nil
+	case binary == nil:
 		return c.Package, nil
 	}
 
@@ -205,10 +290,10 @@ func decideArtifact(c *installCandidates, opts *GetOptions, pkgInstalled func(na
 	}
 
 	if opts.Selector != nil {
-		return opts.Selector([]*InstallArtifact{c.Binary, c.Package})
+		return opts.Selector([]*InstallArtifact{binary, c.Package})
 	}
 
-	return c.Binary, nil
+	return binary, nil
 }
 
 // buildPackageInstallCmd returns the argv to install a local package file
@@ -473,6 +558,8 @@ func (di *defaultImplementation) InstallAsset(
 		return di.installBinary(opts, info, artifact, path)
 	case ArtifactPackage:
 		return di.installPackage(opts, artifact, path)
+	case ArtifactArchive:
+		return di.installArchive(opts, info, artifact, path)
 	default:
 		return fmt.Errorf("unknown artifact kind %q", artifact.Kind)
 	}
@@ -558,17 +645,25 @@ func (di *defaultImplementation) RecordInstall(
 	}
 
 	// Hash the verified artifact. For binaries this is the same content
-	// that landed in the binaries directory.
+	// that landed in the binaries directory, for archives it is the
+	// archive the installed file was extracted from.
 	digest, err := fileDigest(downloadPath)
 	if err != nil {
 		return err
+	}
+
+	// The record is keyed by the installable name. Artifacts built by hand
+	// may only carry the file name, derive it from there.
+	name := artifact.Name
+	if name == "" {
+		name = strings.TrimSuffix(artifact.InstallName, exeSuffix)
 	}
 
 	record := &inventory.Record{
 		Host:     artifact.Asset.GetHost(),
 		Org:      artifact.Asset.GetOrg(),
 		Repo:     artifact.Asset.GetRepo(),
-		Name:     strings.TrimSuffix(artifact.InstallName, exeSuffix),
+		Name:     name,
 		Version:  artifact.Asset.GetVersion(),
 		Kind:     string(artifact.Kind),
 		Asset:    artifact.Asset.GetName(),
@@ -579,6 +674,9 @@ func (di *defaultImplementation) RecordInstall(
 	switch artifact.Kind {
 	case ArtifactBinary:
 		record.BinPath = filepath.Join(opts.BinDir, artifact.InstallName)
+	case ArtifactArchive:
+		record.BinPath = filepath.Join(opts.BinDir, artifact.InstallName)
+		record.ArchiveEntry = artifact.ArchiveEntry
 	case ArtifactPackage:
 		record.PackageFormat = artifact.PackageFormat
 	}

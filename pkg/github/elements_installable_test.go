@@ -1,6 +1,8 @@
 package github
 
 import (
+	"cmp"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -185,13 +187,49 @@ var fileSet2 = []string{
 	"release-cosign.pub",
 }
 
-func TestFileListToInstallableList(t *testing.T) {
+func assetsFromNames(names []string) []AssetDataProvider {
+	assets := make([]AssetDataProvider, 0, len(names))
+	for _, name := range names {
+		assets = append(assets, &Asset{Name: name, Version: "v1.0.0"})
+	}
+	return assets
+}
+
+func TestAssetListToInstallableList(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name string
-	}{} {
-		t.Run(tc.name, func(t *testing.T) {
+
+	t.Run("groups-and-sorts", func(t *testing.T) {
+		t.Parallel()
+		res := assetListToInstallableList(assetsFromNames([]string{
+			"zeta-linux-amd64", "notes.txt", "alpha-linux-amd64", "zeta-darwin-arm64",
+			"README.md", "beta-windows-amd64.exe", "alpha-linux-arm64",
+		}))
+
+		names := make([]string, 0, len(res))
+		for _, item := range res {
+			names = append(names, item.GetName())
+		}
+		require.Equal(t, []string{"README.md", "alpha", "beta", "notes.txt", "zeta"}, names,
+			"installables and plain assets are listed together, sorted by name")
+
+		alpha, ok := res[1].(*Installable)
+		require.True(t, ok)
+		require.Len(t, alpha.Variants, 2)
+		zeta, ok := res[4].(*Installable)
+		require.True(t, ok)
+		require.Len(t, zeta.Variants, 2)
+		_, ok = res[0].(*Asset)
+		require.True(t, ok, "files without platform markers stay plain assets")
+	})
+
+	for name, files := range map[string][]string{"bom": fileSet1, "cosign": fileSet2} {
+		t.Run(name+"-sorted", func(t *testing.T) {
 			t.Parallel()
+			res := assetListToInstallableList(assetsFromNames(files))
+			require.NotEmpty(t, res)
+			require.True(t, slices.IsSortedFunc(res, func(a, b AssetDataProvider) int {
+				return cmp.Compare(a.GetName(), b.GetName())
+			}), "the release listing must be sorted by name")
 		})
 	}
 }

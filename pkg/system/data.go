@@ -7,7 +7,10 @@ import "strings"
 
 var (
 	PackageTypes = []string{PackageRPM, PackageDeb, PackageApk, PackageDmg, PackageMSI}
-	ArchiveTypes = []string{ArchiveZip, ArchiveTar, ArchiveBz2, ArchiveGz, ArchiveXz, ArchiveRar, ArchiveL7, ArchiveTgz}
+	ArchiveTypes = []string{
+		ArchiveZip, ArchiveTar, ArchiveBz2, ArchiveGz, ArchiveXz, ArchiveZst, ArchiveRar, ArchiveL7,
+		ArchiveTgz, ArchiveTxz, ArchiveTbz, extTbz2, ArchiveTzst,
+	}
 )
 
 // OS alias maps
@@ -85,18 +88,26 @@ const (
 	PackageMSI = "msi"
 	PackageWhl = "whl" // Python wheel
 
-	ArchiveZip = "zip"
-	ArchiveTar = "tar"
-	ArchiveBz2 = "bz2"
-	ArchiveGz  = "gz"
-	ArchiveXz  = "xz"
-	ArchiveRar = "rar"
-	ArchiveL7  = "l7"
-	ArchiveTgz = "tgz"
-	Archive7z  = "7z"
+	ArchiveZip  = "zip"
+	ArchiveTar  = "tar"
+	ArchiveBz2  = "bz2"
+	ArchiveGz   = "gz"
+	ArchiveXz   = "xz"
+	ArchiveZst  = "zst"
+	ArchiveRar  = "rar"
+	ArchiveL7   = "l7"
+	ArchiveTgz  = "tgz"  // gzipped tarball
+	ArchiveTxz  = "txz"  // xz compressed tarball
+	ArchiveTbz  = "tbz"  // bzip2 compressed tarball
+	ArchiveTzst = "tzst" // zstd compressed tarball
+	Archive7z   = "7z"
 
-	// extTarGz is the long extension of gzipped tarballs
-	extTarGz = "tar.gz"
+	// Long extensions of compressed tarballs
+	extTarGz  = "tar.gz"
+	extTarXz  = "tar.xz"
+	extTarBz2 = "tar.bz2"
+	extTarZst = "tar.zst"
+	extTbz2   = "tbz2"
 )
 
 // Operating system families
@@ -162,13 +173,17 @@ var PackageExtensions = ExtensionList{
 }
 
 var ArchiveExtensions = ExtensionList{
-	ArchiveZip: {ArchiveZip},
-	ArchiveTar: {ArchiveTar},
-	ArchiveBz2: {ArchiveBz2, "bz"},
-	ArchiveGz:  {ArchiveGz},
-	ArchiveXz:  {ArchiveXz},
-	ArchiveRar: {ArchiveRar},
-	ArchiveL7:  {ArchiveL7},
-	ArchiveTgz: {extTarGz, ArchiveTgz},
-	Archive7z:  {Archive7z},
+	ArchiveZip:  {ArchiveZip},
+	ArchiveTar:  {ArchiveTar},
+	ArchiveBz2:  {ArchiveBz2, "bz"},
+	ArchiveGz:   {ArchiveGz},
+	ArchiveXz:   {ArchiveXz},
+	ArchiveZst:  {ArchiveZst},
+	ArchiveRar:  {ArchiveRar},
+	ArchiveL7:   {ArchiveL7},
+	ArchiveTgz:  {extTarGz, ArchiveTgz},
+	ArchiveTxz:  {extTarXz, ArchiveTxz},
+	ArchiveTbz:  {extTarBz2, extTbz2, ArchiveTbz},
+	ArchiveTzst: {extTarZst, ArchiveTzst},
+	Archive7z:   {Archive7z},
 }

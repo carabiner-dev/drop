@@ -20,6 +20,7 @@ var (
 	ErrNoPolicyAvailable  = errors.New("no verification policies available for artifact")
 	ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
 	ErrNoPlatformVariant  = errors.New("no installable variant found for the specified platform")
+	ErrInstallAborted     = errors.New("installation aborted")
 )
 
 type Dropper struct {

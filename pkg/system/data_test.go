@@ -22,6 +22,17 @@ func TestGetTypeFromFile(t *testing.T) {
 		{"gz", "file.other.gz", ArchiveGz},
 		{"bzip-variant-1", "file.other.bz", ArchiveBz2},
 		{"bzip-variant-2", "file.other.bz2", ArchiveBz2},
+		{"xz", "file.xz", ArchiveXz},
+		{"tar.xz", "file.tar.xz", ArchiveTxz},
+		{"txz", "file.txz", ArchiveTxz},
+		{"tar.bz2", "file.tar.bz2", ArchiveTbz},
+		{"tbz2", "file.tbz2", ArchiveTbz},
+		{"tbz", "file.tbz", ArchiveTbz},
+		{"zst", "file.zst", ArchiveZst},
+		{"tar.zst", "file.tar.zst", ArchiveTzst},
+		{"tzst", "file.tzst", ArchiveTzst},
+		{"7z", "file.7z", Archive7z},
+		{"not-an-archive", "file-linux-amd64", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -44,6 +55,11 @@ func TestGetTypeExtensionFromFile(t *testing.T) {
 		{"gz", "file.other.gz", ArchiveGz, ArchiveGz},
 		{"bzip-variant-1", "file.other.bz", ArchiveBz2, "bz"},
 		{"bzip-variant-2", "file.other.bz2", ArchiveBz2, ArchiveBz2},
+		{"tar.xz", "file.tar.xz", ArchiveTxz, extTarXz},
+		{"tar.bz2", "file.tar.bz2", ArchiveTbz, extTarBz2},
+		{"tbz2", "file.tbz2", ArchiveTbz, extTbz2},
+		{"tar.zst", "file.tar.zst", ArchiveTzst, extTarZst},
+		{"zst", "file.other.zst", ArchiveZst, ArchiveZst},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

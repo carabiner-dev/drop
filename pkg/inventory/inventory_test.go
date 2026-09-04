@@ -64,6 +64,38 @@ func TestRoundTrip(t *testing.T) {
 	require.False(t, got.UpdatedAt.IsZero())
 }
 
+func TestRoundTripArchiveEntry(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "installed.json")
+
+	inv, err := OpenFile(path)
+	require.NoError(t, err)
+	record := testRecord()
+	record.Kind = "archive"
+	record.Asset = "drop_0.1.0_linux_amd64.tar.gz"
+	record.ArchiveEntry = "drop_0.1.0_linux_amd64/bin/drop"
+	inv.Add(record)
+	require.NoError(t, inv.Save())
+
+	data, err := os.ReadFile(path) //nolint:gosec // test path
+	require.NoError(t, err)
+	require.Contains(t, string(data), `"archiveEntry": "drop_0.1.0_linux_amd64/bin/drop"`)
+
+	reloaded, err := OpenFile(path)
+	require.NoError(t, err)
+	got := reloaded.Get(record.Key())
+	require.NotNil(t, got)
+	require.Equal(t, "archive", got.Kind)
+	require.Equal(t, record.ArchiveEntry, got.ArchiveEntry)
+
+	// Records of other kinds leave the field out of the file
+	inv.Add(testRecord())
+	require.NoError(t, inv.Save())
+	data, err = os.ReadFile(path) //nolint:gosec // test path
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "archiveEntry")
+}
+
 func TestAddPreservesInstalledAt(t *testing.T) {
 	t.Parallel()
 	inv := &Inventory{Version: Version, Installs: map[string]*Record{}}
