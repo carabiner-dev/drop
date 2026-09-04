@@ -79,7 +79,7 @@ func (io *installOptions) AddFlags(cmd *cobra.Command) {
 	)
 
 	cmd.PersistentFlags().StringVar(
-		&io.PolicyRepo, "policy-repo", "", "alternative repository to use as policy source",
+		&io.PolicyRepo, "policy-repo", "", "alternative policy source: a GitHub repository or the path of a local git checkout",
 	)
 
 	cmd.PersistentFlags().IntVar(

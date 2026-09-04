@@ -6,11 +6,13 @@ package drop
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 
 	"github.com/carabiner-dev/signer"
+	util "sigs.k8s.io/release-utils/helpers"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
@@ -108,11 +110,54 @@ type (
 	FuncGetOption func(*GetOptions) error
 )
 
-// Constructor funcs
+// fileScheme prefixes the locators of local git repositories
+const fileScheme = "file://"
+
+// localPolicyRepository recognizes a local git checkout given as a policy
+// repository: a file:// URL, an absolute path or a path starting with a
+// dot. It returns the file:// locator of the checkout. Repository slugs and
+// URLs are never taken as local paths.
+func localPolicyRepository(spec string) (locator string, local bool, err error) {
+	path := spec
+	switch {
+	case strings.HasPrefix(spec, fileScheme):
+		path = strings.TrimPrefix(spec, fileScheme)
+	case filepath.IsAbs(spec), strings.HasPrefix(spec, "."):
+	default:
+		return "", false, nil
+	}
+
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", true, fmt.Errorf("resolving policy repository path: %w", err)
+	}
+	if !util.IsDir(abs) {
+		return "", true, fmt.Errorf("policy repository %q is not a directory", spec)
+	}
+
+	// Locators need a slash before a windows drive letter
+	slashed := filepath.ToSlash(abs)
+	if !strings.HasPrefix(slashed, "/") {
+		slashed = "/" + slashed
+	}
+	return fileScheme + slashed, true, nil
+}
+
+// WithPolicyRepository sets the repository policies are read from instead of
+// the .ampel repository of the artifact's organization: a GitHub repository
+// (URL or org/repo slug) or a local git checkout given as a file:// URL or
+// a directory path (the committed contents are read, not the working tree).
 func WithPolicyRepository(repoURL string) FuncOption {
 	return func(d *Dropper) error {
 		if repoURL == "" {
 			d.Options.PolicyRepository = ""
+			return nil
+		}
+		if locator, local, err := localPolicyRepository(repoURL); local {
+			if err != nil {
+				return err
+			}
+			d.Options.PolicyRepository = locator
 			return nil
 		}
 		str, err := github.RepoURLFromString(repoURL)

@@ -71,7 +71,7 @@ func (io *getOptions) AddFlags(cmd *cobra.Command) {
 	)
 
 	cmd.PersistentFlags().StringVar(
-		&io.PolicyRepo, "policy-repo", "", "alternative repository to use as policy source",
+		&io.PolicyRepo, "policy-repo", "", "alternative policy source: a GitHub repository or the path of a local git checkout",
 	)
 
 	cmd.PersistentFlags().IntVar(
@@ -113,7 +113,10 @@ file published as a release asset.
 By default, %s looks for attestations published along the artifacts and 
 security policies in a specially named .ampel directory in the same GitHub
 organization where the files are hosted. You can specify an alternative 
-policy repository.
+policy repository with --policy-repo, either another GitHub repository or
+the path of a local git checkout (its committed contents are read):
+
+  drop get --policy-repo=./my-policies github.com/org/repo
 
 Artifacts in a release are grouped into an "installable". This is a named entry
 that groups together all platform variants, packages and archives as well as 
