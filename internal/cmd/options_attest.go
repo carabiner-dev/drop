@@ -47,7 +47,14 @@ func defaultAttestOptions() *attestOptions {
 	}
 }
 
-// AddFlags adds the attestation and signing flags to a command
+// Flag groups of the attestation options in the usage text
+const (
+	grpAttestation = "attestation"
+	grpSigning     = "signing"
+)
+
+// AddFlags adds the attestation and signing flags to a command, rendered
+// under their own headings in the usage text.
 func (ao *attestOptions) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(
 		&ao.Attest, "attest", false, "write an attestation of the verification performed",
@@ -69,6 +76,13 @@ func (ao *attestOptions) AddFlags(cmd *cobra.Command) {
 	)
 
 	ao.SignerSet.AddFlags(cmd)
+
+	groupFlags(cmd, grpAttestation, "attest", "attestation-type", "attestation-out", "sign")
+	groupFlagsByPrefix(cmd, grpSigning, "signing-", "sigstore-", "spiffe-")
+	registerFlagGroups(cmd,
+		flagGroup{ID: grpAttestation, Title: "Attestation Flags:"},
+		flagGroup{ID: grpSigning, Title: "Signing Flags:"},
+	)
 }
 
 // Validate checks the attestation flags. insecure reports if verification
