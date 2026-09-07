@@ -6,11 +6,11 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/carabiner-dev/ampel v1.3.7
 	github.com/carabiner-dev/attestation v0.2.1
-	github.com/carabiner-dev/collector v0.3.13
+	github.com/carabiner-dev/collector v0.3.14
 	github.com/carabiner-dev/hasher v0.2.4
 	github.com/carabiner-dev/policy v0.5.3
 	github.com/carabiner-dev/predicates v0.5.0
-	github.com/carabiner-dev/signer v0.6.1
+	github.com/carabiner-dev/signer v0.6.2-0.20260901235141-7abffe0fc666
 	github.com/charmbracelet/huh v1.0.0
 	github.com/fatih/color v1.19.0
 	github.com/google/go-github/v60 v60.0.0
@@ -20,6 +20,7 @@ require (
 	github.com/rodaine/table v1.3.1
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	github.com/ulikunitz/xz v0.5.16
 	golang.org/x/oauth2 v0.36.0
@@ -52,7 +53,7 @@ require (
 	github.com/carabiner-dev/sbomfs v0.2.0 // indirect
 	github.com/carabiner-dev/spdx3 v0.1.0 // indirect
 	github.com/carabiner-dev/stash v0.0.0-20260716192412-e2fe293d76a5 // indirect
-	github.com/carabiner-dev/vcslocator v0.4.7 // indirect
+	github.com/carabiner-dev/vcslocator v0.5.0 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -166,7 +167,6 @@ require (
 	github.com/sigstore/timestamp-authority/v2 v2.1.3 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
 	github.com/spdx/tools-golang v0.5.7 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.8.1 // indirect
 	github.com/theupdateframework/go-tuf v0.7.0 // indirect
 	github.com/theupdateframework/go-tuf/v2 v2.4.2 // indirect
