@@ -9,12 +9,8 @@ import (
 	"strings"
 )
 
-// DropRepositoryURL is the home of the drop project, where community
-// policy requests are filed.
-const DropRepositoryURL = "https://github.com/carabiner-dev/drop"
-
 // PolicyRequestTitlePrefix marks community policy request issues so they
-// stand out in the drop repository's issue list.
+// stand out in the community policy repository's issue list.
 const PolicyRequestTitlePrefix = "✨ Community Policies Request: "
 
 // DefaultPolicyRepository returns the URL of the repository where drop looks
@@ -54,8 +50,9 @@ func CommunityPolicyPath(org, repo string) string {
 	return fmt.Sprintf("policies/%s/%s/release", org, repo)
 }
 
-// PolicyRequest describes a request for the drop project to write community
-// policies for an open source repository that has none.
+// PolicyRequest describes a request for the community to write policies
+// for an open source repository that has none. Requests are filed as
+// issues in the community policy repository.
 type PolicyRequest struct {
 	// Repository coordinates of the project lacking policies
 	Host string
@@ -109,7 +106,7 @@ func (pr *PolicyRequest) Body() string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "## Community policies request\n\n")
-	fmt.Fprintf(&b, "Please consider writing community policies for **%s** (%s).\n\n", pr.Slug(), pr.RepositoryURL())
+	fmt.Fprintf(&b, "Please consider adding policies for **%s** (%s) to this repository.\n\n", pr.Slug(), pr.RepositoryURL())
 	fmt.Fprintf(&b, "`drop` looked for policies in %s (under `%s`)", policyRepo, PolicyPathsLabel(pr.Repo))
 	if pr.CommunityRepository != "" {
 		fmt.Fprintf(&b, " and in the community repository %s (under `%s/`)", pr.CommunityRepository, CommunityPolicyPath(pr.Org, pr.Repo))
@@ -135,12 +132,17 @@ func (pr *PolicyRequest) Body() string {
 	return b.String()
 }
 
-// URL returns the link to open a prefilled issue in the drop repository.
-// Filing the issue happens in the browser, where the user is signed in to
-// GitHub, so no token is required.
+// URL returns the link to open a prefilled issue in the community policy
+// repository (CommunityRepository, or the default when empty). Filing the
+// issue happens in the browser, where the user is signed in to GitHub, so no
+// token is required.
 func (pr *PolicyRequest) URL() string {
+	target := pr.CommunityRepository
+	if target == "" {
+		target = CommunityPolicyRepositoryURL
+	}
 	q := url.Values{}
 	q.Set("title", pr.Title())
 	q.Set("body", pr.Body())
-	return DropRepositoryURL + "/issues/new?" + q.Encode()
+	return target + "/issues/new?" + q.Encode()
 }

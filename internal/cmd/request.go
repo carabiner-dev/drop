@@ -47,8 +47,8 @@ func addRequest(parentCmd *cobra.Command) {
 %s
 
 %s verifies artifacts against the policies their publisher defines. When
-a project has none, the %s subcommand asks the drop project to write
-community policies for it by opening a prefilled issue in the drop repository:
+a project has none, the %s subcommand asks for community policies to be
+written for it by opening a prefilled issue in the community policy repository:
 
   %s
 
@@ -58,7 +58,7 @@ you are signed in to GitHub, so no token is needed. When not running on a
 terminal (or with --print) the link is printed instead, ready to paste into
 a browser.
 
-`, DropBanner("Request community policies for a repository"), appname, w2("request"), drop.DropRepositoryURL+"/issues", appname),
+`, DropBanner("Request community policies for a repository"), appname, w2("request"), drop.CommunityPolicyRepositoryURL+"/issues", appname),
 		Use:               "request",
 		Example:           fmt.Sprintf(`%s request github.com/org/repo`, appname),
 		SilenceUsage:      false,

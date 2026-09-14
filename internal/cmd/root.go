@@ -44,7 +44,7 @@ func noPolicyMessage(subcommand string, asset *github.Asset, policyRepo string) 
     %s (%s)%s
   You have three options:
 
-    1. Ask the drop project to write community policies for it:
+    1. Ask for community policies to be written for it:
          %s request %s
 
     2. Use policies from another repository or a local checkout:

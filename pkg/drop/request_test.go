@@ -33,6 +33,9 @@ func TestPolicyRequest(t *testing.T) {
 
 	req.CommunityRepository = CommunityPolicyRepositoryURL
 	require.Contains(t, req.Body(), "https://github.com/policylabs/oss (under `policies/goreleaser/goreleaser/release/`)")
+	req.CommunityRepository = "https://github.com/example/policies"
+	require.True(t, strings.HasPrefix(req.URL(), "https://github.com/example/policies/issues/new?"),
+		"requests go to the community repository that was checked")
 	req.CommunityRepository = ""
 	require.Contains(t, body, "linux/amd64")
 	require.Contains(t, body, "[v2.18.1](https://github.com/goreleaser/goreleaser/releases/tag/v2.18.1)")
@@ -40,7 +43,8 @@ func TestPolicyRequest(t *testing.T) {
 
 	u, err := url.Parse(req.URL())
 	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(req.URL(), DropRepositoryURL+"/issues/new?"))
+	require.True(t, strings.HasPrefix(req.URL(), CommunityPolicyRepositoryURL+"/issues/new?"),
+		"requests are filed in the community policy repository by default")
 	require.Equal(t, req.Title(), u.Query().Get("title"))
 	require.Equal(t, body, u.Query().Get("body"))
 
