@@ -88,6 +88,12 @@ const (
 	PackageMSI = "msi"
 	PackageWhl = "whl" // Python wheel
 
+	// Linux app bundles. Recognized so they are never mistaken for bare
+	// binaries, but drop does not install them.
+	PackageFlatpak  = "flatpak"
+	PackageSnap     = "snap"
+	PackageAppImage = "appimage"
+
 	ArchiveZip  = "zip"
 	ArchiveTar  = "tar"
 	ArchiveBz2  = "bz2"
@@ -170,6 +176,10 @@ var PackageExtensions = ExtensionList{
 	PackageDmg: {"dmg"},
 	PackageMSI: {"msi"},
 	PackageWhl: {"whl"},
+
+	PackageFlatpak:  {"flatpak"},
+	PackageSnap:     {"snap"},
+	PackageAppImage: {"AppImage", "appimage"},
 }
 
 var ArchiveExtensions = ExtensionList{

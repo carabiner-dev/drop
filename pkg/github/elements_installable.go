@@ -235,7 +235,9 @@ func getOsFromFilename(filename string) string {
 	}
 
 	// If it's a package then we know
-	if strings.HasSuffix(filename, ".rpm") || strings.HasSuffix(filename, ".deb") || strings.HasSuffix(filename, ".apk") {
+	switch system.PackageExtensions.GetTypeFromFile(filename) {
+	case system.PackageRPM, system.PackageDeb, system.PackageApk,
+		system.PackageFlatpak, system.PackageSnap, system.PackageAppImage:
 		return system.OSLinux
 	}
 

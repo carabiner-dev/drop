@@ -67,6 +67,8 @@ func testInstallable() *github.Installable {
 			{Name: testRPMFile, Os: system.OSLinux, Arch: system.ArchAMD64},
 			{Name: testTgzFile, Os: system.OSLinux, Arch: system.ArchAMD64},
 			{Name: "drop-linux-amd64.zip", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "drop_1.0.0_linux_amd64.flatpak", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "drop-linux-arm64.AppImage", Os: system.OSLinux, Arch: system.ArchArm64},
 			{Name: "drop-linux-arm64.rar", Os: system.OSLinux, Arch: system.ArchArm64},
 			{Name: "drop-darwin-arm64.dmg", Os: system.OSDarwin, Arch: system.ArchArm64},
 			{Name: "drop-darwin-arm64.tar.zst", Os: system.OSDarwin, Arch: system.ArchArm64},
@@ -101,7 +103,7 @@ func TestClassifyInstallCandidates(t *testing.T) {
 		},
 		{
 			name: "linux-arm64-binary-and-rar", os: system.OSLinux, arch: system.ArchArm64, pkgFormat: system.PackageRPM,
-			binaryName: "drop-linux-arm64", installName: testAppName, hasOtherArchive: true,
+			binaryName: "drop-linux-arm64", installName: testAppName, hasOtherArchive: true, hasOtherPkg: true,
 		},
 		{
 			name: "windows-exe", os: system.OSWindows, arch: system.ArchAMD64, pkgFormat: "",
@@ -732,4 +734,33 @@ func TestIsMetadataFile(t *testing.T) {
 	} {
 		require.Equal(t, expect, isMetadataFile(file), file)
 	}
+}
+
+// TestClassifyGoreleaserStyleRelease checks that releases shipping Linux app
+// bundles (flatpak, snap, AppImage) next to a tarball never mistake the
+// bundle for a bare binary and install from the archive instead.
+func TestClassifyGoreleaserStyleRelease(t *testing.T) {
+	t.Parallel()
+	inst := &github.Installable{
+		Name: "goreleaser",
+		Variants: []*github.Asset{
+			{Name: "goreleaser_2.18.1_linux_amd64.flatpak", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "goreleaser_2.18.1_linux_amd64.snap", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "goreleaser_2.18.1_linux_amd64.AppImage", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "goreleaser_Linux_x86_64.tar.gz", Os: system.OSLinux, Arch: system.ArchAMD64},
+			{Name: "goreleaser_Linux_x86_64.tar.gz.sbom.json", Os: system.OSLinux, Arch: system.ArchAMD64},
+		},
+	}
+
+	cands := classifyInstallCandidates(inst, system.OSLinux, system.ArchAMD64, system.PackageRPM)
+
+	require.Nil(t, cands.Binary, "app bundles must never be classified as bare binaries")
+	require.Nil(t, cands.Package)
+	require.True(t, cands.HasOtherPkg)
+	require.NotNil(t, cands.Archive)
+	require.Equal(t, "goreleaser_Linux_x86_64.tar.gz", cands.Archive.Asset.GetName())
+
+	artifact, err := decideArtifact(cands, &GetOptions{}, nil)
+	require.NoError(t, err)
+	require.Equal(t, ArtifactArchive, artifact.Kind)
 }

@@ -530,7 +530,7 @@ func (di *defaultImplementation) SelectInstallArtifact(
 	if binaryOnly && cands.HasOtherPkg {
 		opts.Listener.HandleEvent(&Event{
 			Object: EventObjectInstall, Verb: EventVerbSkipped,
-			Data: map[string]string{"reason": "dmg/msi installation is not supported yet"},
+			Data: map[string]string{"reason": "package format is not supported yet"},
 		})
 	}
 
