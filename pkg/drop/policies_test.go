@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,8 +27,20 @@ func policySetAttestation(id string) string {
 		`"policies":[{"id":"pass","meta":{"description":"test","version":1},"tenets":[{"id":"t","code":"true"}]}]}}`, id)
 }
 
+// fileLocator returns the file:// locator of a local path, in the form
+// localPolicyRepository builds for --policy-repo: forward slashes and a
+// leading slash before a windows drive letter (file:///C:/...). A bare
+// "file://" + path is not a valid URL on windows.
+func fileLocator(path string) string {
+	slashed := filepath.ToSlash(path)
+	if !strings.HasPrefix(slashed, "/") {
+		slashed = "/" + slashed
+	}
+	return fileScheme + slashed
+}
+
 // newPolicyRepo creates a committed git repository holding one policy set
-// per directory, identified by the directory name.
+// per directory, identified by the directory name, and returns its locator.
 func newPolicyRepo(t *testing.T, dirs ...string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -50,7 +63,7 @@ func newPolicyRepo(t *testing.T, dirs ...string) string {
 		Author: &object.Signature{Name: "test", Email: "test@example.com", When: time.Now()},
 	})
 	require.NoError(t, err)
-	return dir
+	return fileLocator(dir)
 }
 
 func TestFetchPolicies(t *testing.T) {
@@ -70,7 +83,7 @@ func TestFetchPolicies(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			opts := &Options{Listener: &NoopListener{}, PolicyRepository: "file://" + newPolicyRepo(t, tc.dirs...)}
+			opts := &Options{Listener: &NoopListener{}, PolicyRepository: newPolicyRepo(t, tc.dirs...)}
 			asset := &github.Asset{Host: github.DefaultHost, Org: testOrg, Repo: testAppName}
 
 			sets, err := (&defaultImplementation{}).FetchPolicies(opts, asset)
@@ -88,7 +101,7 @@ func TestFetchPoliciesMissingRepo(t *testing.T) {
 	t.Parallel()
 	opts := &Options{
 		Listener:         &NoopListener{},
-		PolicyRepository: "file://" + filepath.Join(t.TempDir(), "missing"),
+		PolicyRepository: fileLocator(filepath.Join(t.TempDir(), "missing")),
 	}
 	asset := &github.Asset{Host: github.DefaultHost, Org: testOrg, Repo: testAppName}
 	sets, err := (&defaultImplementation{}).FetchPolicies(opts, asset)
@@ -119,13 +132,13 @@ func TestFetchPoliciesCommunityFallback(t *testing.T) {
 			if tc.community {
 				communityDirs = append(communityDirs, communityDir)
 			}
-			orgRepo := "file://" + newPolicyRepo(t, tc.orgDirs...)
+			orgRepo := newPolicyRepo(t, tc.orgDirs...)
 			di := &defaultImplementation{
 				policyRepository: func(_, _ string) string { return orgRepo },
 			}
 			opts := &Options{
 				Listener:                  &NoopListener{},
-				CommunityPolicyRepository: "file://" + newPolicyRepo(t, communityDirs...),
+				CommunityPolicyRepository: newPolicyRepo(t, communityDirs...),
 			}
 			if tc.override {
 				opts.PolicyRepository = orgRepo
