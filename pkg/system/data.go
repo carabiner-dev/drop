@@ -31,9 +31,10 @@ var ArchAliases = map[string]LabelList{
 	ArchArm64:   {ArchArm64, ArchAarch64},
 	ArchArm:     {ArchArm, ArchArmHF, ArchArmV7, ArchArmV7HL},
 	Arch386:     {Arch386, ArchI686, ArchI386, Arch32Bit},
-	ArchRiscV64: {ArchRiscV64},
+	ArchRiscV64: {ArchRiscV64, ArchRiscV64GC},
 	ArchS390X:   {ArchS390X},
-	ArchPPC64LE: {ArchPPC64LE, ArchPPC64EL, ArchPPC64},
+	ArchPPC64LE: {ArchPPC64LE, ArchPPC64EL, ArchPPC64, ArchPowerPC64LE, ArchPowerPC64},
+	ArchLoong64: {ArchLoong64, ArchLoongArch64},
 }
 
 // Platform constants
@@ -64,6 +65,13 @@ const (
 	ArchPPC64LE = "ppc64le" // IBM Power (redhat naming)
 	ArchPPC64EL = "ppc64el" // IBM Power (debian naming)
 	ArchPPC64   = "ppc64"
+	ArchLoong64 = "loong64" // LoongArch (go naming)
+
+	// Rust target triple names
+	ArchPowerPC64LE = "powerpc64le"
+	ArchPowerPC64   = "powerpc64"
+	ArchLoongArch64 = "loongarch64"
+	ArchRiscV64GC   = "riscv64gc"
 
 	// Aliases
 	ArchArmHF   = "armhf"
