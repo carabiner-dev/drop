@@ -155,23 +155,64 @@ func (c *Client) ListReleaseAssets(rdata ReleaseDataProvider) ([]AssetDataProvid
 		return nil, fmt.Errorf("fetching release: %w", err)
 	}
 
-	for _, r := range releases {
-		if rdata.GetVersion() == "" || rdata.GetVersion() == "latest" {
-			newRelease := &Release{
-				Host:    rdata.GetHost(),
-				Repo:    rdata.GetRepo(),
-				Org:     rdata.GetOrg(),
-				Version: r.GetTagName(),
-			}
-			return buildReleaseAssets(newRelease, r), nil
+	if rdata.GetVersion() == "" || rdata.GetVersion() == "latest" {
+		r := latestRelease(releases)
+		if r == nil {
+			return nil, fmt.Errorf("repository %s/%s has no releases", rdata.GetOrg(), rdata.GetRepo())
 		}
+		newRelease := &Release{
+			Host:    rdata.GetHost(),
+			Repo:    rdata.GetRepo(),
+			Org:     rdata.GetOrg(),
+			Version: r.GetTagName(),
+		}
+		return buildReleaseAssets(newRelease, r), nil
+	}
 
+	for _, r := range releases {
 		if rdata.GetVersion() == r.GetTagName() {
 			return buildReleaseAssets(rdata, r), nil
 		}
 	}
 
 	return nil, fmt.Errorf("release %v not found", rdata.GetVersion())
+}
+
+// LatestRelease returns the release that "latest" resolves to for a repo.
+func (c *Client) LatestRelease(rdata RepoDataProvider) (ReleaseDataProvider, error) {
+	releases, _, err := c.client.Repositories.ListReleases(
+		context.Background(), rdata.GetOrg(), rdata.GetRepo(), &gogithub.ListOptions{
+			Page:    0,
+			PerPage: 100,
+		})
+	if err != nil {
+		return nil, fmt.Errorf("fetching releases: %w", err)
+	}
+	r := latestRelease(releases)
+	if r == nil {
+		return nil, fmt.Errorf("repository %s/%s has no releases", rdata.GetOrg(), rdata.GetRepo())
+	}
+	return newReleaseFromGitHubRelease(rdata, r), nil
+}
+
+// latestRelease picks the release "latest" resolves to from GitHub's list
+// (newest first): the newest stable release, skipping drafts and prereleases
+// such as nightlies and release candidates. When a repository only publishes
+// prereleases, the newest of those is used instead.
+func latestRelease(releases []*gogithub.RepositoryRelease) *gogithub.RepositoryRelease {
+	var newestPrerelease *gogithub.RepositoryRelease
+	for _, r := range releases {
+		if r.GetDraft() {
+			continue
+		}
+		if !r.GetPrerelease() {
+			return r
+		}
+		if newestPrerelease == nil {
+			newestPrerelease = r
+		}
+	}
+	return newestPrerelease
 }
 
 func buildReleaseAssets(src ReleaseDataProvider, release *gogithub.RepositoryRelease) []AssetDataProvider {

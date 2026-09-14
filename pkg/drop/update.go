@@ -4,7 +4,6 @@
 package drop
 
 import (
-	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -75,22 +74,19 @@ func (dropper *Dropper) CheckUpdates() ([]*UpdateStatus, error) {
 	return ret, nil
 }
 
-// latestReleaseVersion returns the tag of the newest release in the repo an
-// app was installed from. The first listed release is used, matching how the
-// installer resolves "latest" when no version is pinned.
+// latestReleaseVersion returns the tag of the newest stable release in the
+// repo an app was installed from, matching how the installer resolves
+// "latest" when no version is pinned.
 func (dropper *Dropper) latestReleaseVersion(record *inventory.Record) (string, error) {
-	releases, err := dropper.client.ListReleases(&github.Repository{
+	release, err := dropper.client.LatestRelease(&github.Repository{
 		Host: record.Host,
 		Org:  record.Org,
 		Repo: record.Repo,
 	})
 	if err != nil {
-		return "", fmt.Errorf("listing releases: %w", err)
+		return "", fmt.Errorf("finding latest release: %w", err)
 	}
-	if len(releases) == 0 {
-		return "", errors.New("repository has no releases")
-	}
-	return releases[0].GetVersion(), nil
+	return release.GetVersion(), nil
 }
 
 // updateInstallOptions builds the install options to update an app, honoring
