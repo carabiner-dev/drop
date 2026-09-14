@@ -21,6 +21,7 @@ var (
 	ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
 	ErrNoPlatformVariant  = errors.New("no installable variant found for the specified platform")
 	ErrInstallAborted     = errors.New("installation aborted")
+	ErrAlreadyInstalled   = errors.New("already installed")
 )
 
 type Dropper struct {
@@ -148,6 +149,9 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetO
 
 	artifact, err := dropper.impl.SelectInstallArtifact(&opts, dropper.client, sysinfo, spec)
 	if err != nil {
+		if errors.Is(err, ErrAlreadyInstalled) {
+			return err
+		}
 		return fmt.Errorf("unable to locate a suitable asset: %w", err)
 	}
 
@@ -206,6 +210,18 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetO
 	// installed at this point, so a recording failure is not fatal.
 	if err := dropper.impl.RecordInstall(&opts, artifact, downloadPath, !opts.SkipVerification); err != nil {
 		logrus.Warnf("app installed, but recording it in the inventory failed: %v", err)
+	}
+
+	// When reinstalling in another format (or to another directory), the
+	// artifact left by the previous installation is removed so the two
+	// don't coexist.
+	if staleInstall(opts.previous, artifact, opts.BinDir) {
+		if err := dropper.impl.RemoveInstalled(&opts, opts.previous); err != nil {
+			return fmt.Errorf(
+				"%s installed, but removing the previous %s failed: %w",
+				installableName(artifact), opts.previous.Kind, err,
+			)
+		}
 	}
 
 	return nil

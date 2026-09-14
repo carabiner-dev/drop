@@ -98,6 +98,7 @@ func TestUpdateInstallOptions(t *testing.T) {
 			for _, fn := range updateInstallOptions(tc.record) {
 				require.NoError(t, fn(opts))
 			}
+			require.True(t, opts.Reinstall, "updates must reinstall over the recorded app")
 			require.Equal(t, tc.expectType, opts.DownloadType)
 			// filepath.Dir returns OS-native separators on windows
 			require.Equal(t, filepath.FromSlash(tc.expectBinDir), opts.BinDir)

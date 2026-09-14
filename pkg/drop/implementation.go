@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/release-utils/http"
 
 	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/inventory"
 	"github.com/carabiner-dev/drop/pkg/system"
 )
 
@@ -71,6 +72,10 @@ type installerImplementation interface {
 	// RecordInstall registers a successful installation in the user's
 	// inventory database so it can later be verified, updated or removed.
 	RecordInstall(*GetOptions, *InstallArtifact, string, bool) error
+
+	// RemoveInstalled removes the artifact a previous installation left in
+	// the system: a binary file or a package (through the package manager).
+	RemoveInstalled(*GetOptions, *inventory.Record) error
 }
 
 type defaultImplementation struct {

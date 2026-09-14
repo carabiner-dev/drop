@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -45,7 +46,9 @@ const (
 	cmdApt      = "apt"
 	cmdDpkg     = "dpkg"
 	cmdApk      = "apk"
+	cmdRm       = "rm"
 	verbInstall = "install"
+	verbRemove  = "remove"
 	exeSuffix   = ".exe"
 
 	dataKeyKind = "kind"
@@ -503,6 +506,9 @@ func (di *defaultImplementation) SelectInstallArtifact(
 				if err != nil {
 					return nil, err
 				}
+				if err := di.previousInstall(opts, spec, inst.GetName()); err != nil {
+					return nil, err
+				}
 				opts.computedFilename = v.GetName()
 				return artifact, nil
 			}
@@ -521,8 +527,17 @@ func (di *defaultImplementation) SelectInstallArtifact(
 		if err != nil {
 			return nil, err
 		}
+		if err := di.previousInstall(opts, spec, installableName(artifact)); err != nil {
+			return nil, err
+		}
 		opts.computedFilename = plain.GetName()
 		return artifact, nil
+	}
+
+	// Check the inventory before choosing: an app that is already
+	// installed is only reinstalled on request, reusing its choices.
+	if err := di.previousInstall(opts, spec, inst.GetName()); err != nil {
+		return nil, err
 	}
 
 	cands := classifyInstallCandidates(inst, opts.OS, opts.Arch, pkgFormat)
@@ -644,15 +659,9 @@ func fileDigest(path string) (string, error) {
 func (di *defaultImplementation) RecordInstall(
 	opts *GetOptions, artifact *InstallArtifact, downloadPath string, verified bool,
 ) error {
-	var inv *inventory.Inventory
-	var err error
-	if di.inventoryPath == "" {
-		inv, err = inventory.Open()
-	} else {
-		inv, err = inventory.OpenFile(di.inventoryPath)
-	}
+	inv, err := di.openInventory()
 	if err != nil {
-		return fmt.Errorf("opening install inventory: %w", err)
+		return err
 	}
 
 	// Hash the verified artifact. For binaries this is the same content
@@ -690,6 +699,229 @@ func (di *defaultImplementation) RecordInstall(
 		return fmt.Errorf("saving install inventory: %w", err)
 	}
 	return nil
+}
+
+// openInventory loads the install inventory from its configured location.
+func (di *defaultImplementation) openInventory() (*inventory.Inventory, error) {
+	var inv *inventory.Inventory
+	var err error
+	if di.inventoryPath == "" {
+		inv, err = inventory.Open()
+	} else {
+		inv, err = inventory.OpenFile(di.inventoryPath)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("opening install inventory: %w", err)
+	}
+	return inv, nil
+}
+
+// previousInstall looks up the inventory record of the app about to be
+// installed and applies it to the options (see applyPreviousInstall).
+func (di *defaultImplementation) previousInstall(opts *GetOptions, spec github.RepoDataProvider, name string) error {
+	inv, err := di.openInventory()
+	if err != nil {
+		return err
+	}
+	key := (&inventory.Record{
+		Host: spec.GetHost(), Org: spec.GetOrg(), Repo: spec.GetRepo(), Name: name,
+	}).Key()
+	return applyPreviousInstall(opts, inv.Get(key))
+}
+
+// applyPreviousInstall handles the inventory record of an app that is being
+// installed again. Unless reinstalling was requested, an existing record is
+// an error. When it was, the record is kept to clean up after the new
+// installation and its choices (artifact kind and archive entry) become the
+// defaults, so the app is reinstalled the way it was unless the caller
+// picked another type.
+func applyPreviousInstall(opts *GetOptions, record *inventory.Record) error {
+	if record == nil {
+		return nil
+	}
+	if !opts.Reinstall {
+		return fmt.Errorf("%s %s is %w", record.Name, record.Version, ErrAlreadyInstalled)
+	}
+	opts.previous = record
+	if opts.DownloadType != "" {
+		return nil
+	}
+	switch record.Kind {
+	case string(ArtifactBinary):
+		opts.DownloadType = "b"
+	case string(ArtifactPackage):
+		opts.DownloadType = "p"
+	case string(ArtifactArchive):
+		opts.DownloadType = "a"
+		if opts.ArchiveEntry == "" {
+			opts.ArchiveEntry = record.ArchiveEntry
+		}
+	}
+	return nil
+}
+
+// staleInstall reports if the artifact left by a previous installation is
+// not replaced by the new one and must be removed: a package superseded by a
+// binary, a binary superseded by a package, or a binary installed to another
+// path. Packages replacing packages are upgraded by the package manager and
+// binaries reinstalled to the same path are overwritten.
+func staleInstall(previous *inventory.Record, artifact *InstallArtifact, binDir string) bool {
+	if previous == nil {
+		return false
+	}
+	switch previous.Kind {
+	case string(ArtifactPackage):
+		return artifact.Kind != ArtifactPackage
+	case string(ArtifactBinary), string(ArtifactArchive):
+		if previous.BinPath == "" {
+			return false
+		}
+		if artifact.Kind == ArtifactPackage {
+			return true
+		}
+		return previous.BinPath != filepath.Join(binDir, artifact.InstallName)
+	}
+	return false
+}
+
+// RemoveInstalled removes the artifact a previous installation left in the
+// system: a binary file (through sudo when its directory is not writable)
+// or a package, through the package manager.
+func (di *defaultImplementation) RemoveInstalled(opts *GetOptions, record *inventory.Record) error {
+	switch record.Kind {
+	case string(ArtifactPackage):
+		return di.removePackage(opts, record)
+	case string(ArtifactBinary), string(ArtifactArchive):
+		return di.removeBinary(opts, record)
+	default:
+		return fmt.Errorf("unknown artifact kind %q", record.Kind)
+	}
+}
+
+// removePackage uninstalls a package recorded in the inventory.
+func (di *defaultImplementation) removePackage(opts *GetOptions, record *inventory.Record) error {
+	sudo := os.Geteuid() != 0
+	argv, err := buildPackageRemoveCmd(record.PackageFormat, record.Name, sudo, di.runner.LookPath)
+	if err != nil {
+		return err
+	}
+
+	opts.Listener.HandleEvent(&Event{
+		Object: EventObjectRemove, Verb: EventVerbRunning,
+		Data: map[string]string{
+			dataKeyKind: string(ArtifactPackage),
+			"format":    record.PackageFormat,
+			dataKeyName: record.Name,
+			dataKeySudo: strconv.FormatBool(sudo),
+		},
+	})
+
+	if err := di.runner.Run(argv); err != nil {
+		return fmt.Errorf("removing %s package: %w", record.PackageFormat, err)
+	}
+
+	opts.Listener.HandleEvent(&Event{
+		Object: EventObjectRemove, Verb: EventVerbDone,
+		Data: map[string]string{dataKeyKind: string(ArtifactPackage), dataKeyName: record.Name},
+	})
+	return nil
+}
+
+// removeBinary deletes the binary a previous installation placed in the
+// binaries directory. A file that is already gone is not an error.
+func (di *defaultImplementation) removeBinary(opts *GetOptions, record *inventory.Record) error {
+	if record.BinPath == "" {
+		return nil
+	}
+	if _, err := os.Lstat(record.BinPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("checking previous binary: %w", err)
+	}
+
+	dir := filepath.Dir(record.BinPath)
+	sudo := !dirWritable(dir)
+	if sudo {
+		if runtime.GOOS == "windows" {
+			return fmt.Errorf("directory %q is not writable", dir)
+		}
+		if _, err := di.runner.LookPath(cmdSudo); err != nil {
+			return fmt.Errorf("%q is not writable and sudo is not available, rerun as root", dir)
+		}
+	}
+
+	opts.Listener.HandleEvent(&Event{
+		Object: EventObjectRemove, Verb: EventVerbRunning,
+		Data: map[string]string{
+			dataKeyKind: record.Kind,
+			dataKeyName: record.Name,
+			dataKeyPath: record.BinPath,
+			dataKeySudo: strconv.FormatBool(sudo),
+		},
+	})
+
+	if sudo {
+		if err := di.runner.Run([]string{cmdSudo, cmdRm, "-f", record.BinPath}); err != nil {
+			return fmt.Errorf("removing previous binary: %w", err)
+		}
+	} else if err := os.Remove(record.BinPath); err != nil {
+		return fmt.Errorf("removing previous binary: %w", err)
+	}
+
+	opts.Listener.HandleEvent(&Event{
+		Object: EventObjectRemove, Verb: EventVerbDone,
+		Data: map[string]string{dataKeyKind: record.Kind, dataKeyName: record.Name, dataKeyPath: record.BinPath},
+	})
+	return nil
+}
+
+// buildPackageRemoveCmd returns the argv to uninstall a package by name
+// using the system's package manager.
+func buildPackageRemoveCmd(format, name string, sudo bool, lookPath func(string) (string, error)) ([]string, error) {
+	has := func(tool string) bool {
+		_, err := lookPath(tool)
+		return err == nil
+	}
+
+	var argv []string
+	switch format {
+	case system.PackageRPM:
+		switch {
+		case has(cmdDnf):
+			argv = []string{cmdDnf, verbRemove, "-y", name}
+		case has(cmdYum):
+			argv = []string{cmdYum, verbRemove, "-y", name}
+		case has(cmdRPM):
+			argv = []string{cmdRPM, "-e", name}
+		default:
+			return nil, errors.New("no rpm package manager (dnf/yum/rpm) found in PATH")
+		}
+	case system.PackageDeb:
+		switch {
+		case has(cmdApt):
+			argv = []string{cmdApt, verbRemove, "-y", name}
+		case has(cmdDpkg):
+			argv = []string{cmdDpkg, "-r", name}
+		default:
+			return nil, errors.New("no deb package manager (apt/dpkg) found in PATH")
+		}
+	case system.PackageApk:
+		if !has(cmdApk) {
+			return nil, errors.New("apk not found in PATH")
+		}
+		argv = []string{cmdApk, "del", name}
+	default:
+		return nil, fmt.Errorf("unsupported package format %q", format)
+	}
+
+	if sudo {
+		if !has(cmdSudo) {
+			return nil, errors.New("sudo not found in PATH, rerun as root")
+		}
+		argv = append([]string{cmdSudo}, argv...)
+	}
+	return argv, nil
 }
 
 // installPackage installs the downloaded package using the system's package

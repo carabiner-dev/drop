@@ -15,6 +15,7 @@ import (
 	util "sigs.k8s.io/release-utils/helpers"
 
 	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/inventory"
 	"github.com/carabiner-dev/drop/pkg/system"
 )
 
@@ -103,6 +104,16 @@ type GetOptions struct {
 	// written: a file path, a directory (which gets the default filename)
 	// or empty to use the default filename in the download directory.
 	AttestationPath string
+
+	// Reinstall allows installing an app that is already recorded in the
+	// inventory. The recorded choices (artifact kind, archive entry) are
+	// reused unless overridden, and when the new installation replaces the
+	// previous one in another format, the previous artifact is removed.
+	Reinstall bool
+
+	// previous is the inventory record of the app being reinstalled, set
+	// while selecting the artifact.
+	previous *inventory.Record
 }
 
 type (
@@ -294,6 +305,15 @@ func WithArchiveEntrySelector(fn ArchiveEntrySelector) FuncGetOption {
 func WithAttestationPath(path string) FuncGetOption {
 	return func(o *GetOptions) error {
 		o.AttestationPath = path
+		return nil
+	}
+}
+
+// WithReinstall allows installing an app that is already installed. The
+// choices made when it was first installed are reused unless overridden.
+func WithReinstall(reinstall bool) FuncGetOption {
+	return func(o *GetOptions) error {
+		o.Reinstall = reinstall
 		return nil
 	}
 }

@@ -27,6 +27,7 @@ type installOptions struct {
 	Quiet       bool
 	Yes         bool
 	Insecure    bool
+	Force       bool
 	BinDir      string
 	*attestOptions
 }
@@ -98,6 +99,10 @@ func (io *installOptions) AddFlags(cmd *cobra.Command) {
 		&io.InstallType, "type", "t", "", fmt.Sprintf("artifact type to install (%v)", installTypes),
 	)
 
+	cmd.PersistentFlags().BoolVar(
+		&io.Force, "force", false, "reinstall an app that is already installed",
+	)
+
 	cmd.PersistentFlags().StringVar(
 		&io.BinDir, "bin-dir", "/usr/local/bin", "directory to install binaries into",
 	)
@@ -154,6 +159,14 @@ choice without prompting:
 Installing to system locations usually requires elevated privileges: drop
 shells out to sudo, which may ask for your password.
 
+Apps already installed with %s are not installed again: run drop update to
+upgrade them or pass --force to reinstall. A forced install reuses the
+choices made the first time unless --type picks another format, in which
+case the artifact of the previous installation is removed (the package is
+uninstalled or the binary deleted) once the new one is in place:
+
+  drop install --force --type=binary github.com/org/repo
+
 To keep evidence of the verification, pass --attest and %s writes a
 signed attestation of the policy evaluation to the current directory (or to
 --attestation-out). Choose the type with --attestation-type: the full ampel
@@ -163,7 +176,7 @@ using ambient CI credentials when available and asking you to log in
 otherwise; the signing flags select a key or another backend and --sign=false
 writes the bare statement.
 
-`, DropBanner("Download, verify and install apps from GitHub releases"), w2("install"), w2("drop install"), w2("drop install"), w2("drop install")),
+`, DropBanner("Download, verify and install apps from GitHub releases"), w2("install"), w2("drop install"), w2("drop install"), w2("drop"), w2("drop install")),
 		Use:               "install",
 		Example:           fmt.Sprintf(`%s install github.com/app/repo`, appname),
 		SilenceUsage:      false,
@@ -226,6 +239,7 @@ writes the bare statement.
 				drop.WithDownloadType(opts.InstallType),
 				drop.WithBinDir(opts.BinDir),
 				drop.WithAttestationPath(opts.Out),
+				drop.WithReinstall(opts.Force),
 			}
 			if opts.Entry != "" {
 				installOpts = append(installOpts, drop.WithRequiredArchiveEntry(opts.Entry))
@@ -258,6 +272,8 @@ writes the bare statement.
 					return fmt.Errorf("%w (pick one with --entry or run interactively)", err)
 				case errors.Is(err, drop.ErrNoPolicyAvailable):
 					return fmt.Errorf("%w (%s)", err, noPolicyHint)
+				case errors.Is(err, drop.ErrAlreadyInstalled):
+					return fmt.Errorf("%w (run \"drop update\" to upgrade or reinstall with --force)", err)
 				}
 				return fmt.Errorf("error installing: %w", err)
 			}

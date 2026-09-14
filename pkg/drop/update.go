@@ -94,6 +94,7 @@ func (dropper *Dropper) latestReleaseVersion(record *inventory.Record) (string, 
 // location, the file picked from an archive and the verification stance.
 func updateInstallOptions(record *inventory.Record) []FuncGetOption {
 	options := []FuncGetOption{
+		WithReinstall(true),
 		WithVerifyDownloads(record.Verified),
 	}
 	switch record.Kind {

@@ -9,6 +9,7 @@ const (
 	EventObjectAttestation  = "attestation"
 	EventObjectInstall      = "install"
 	EventObjectPolicy       = "policy"
+	EventObjectRemove       = "remove"
 	EventObjectVerification = "verification"
 
 	EventVerbDone    = "done"

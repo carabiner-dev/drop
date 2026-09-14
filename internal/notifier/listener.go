@@ -83,6 +83,31 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 			}
 			fmt.Printf("  💾 %s%s\n", w("Download complete!"), p)
 		}
+	case drop.EventObjectInstall, drop.EventObjectRemove:
+		l.handleInstallEvent(event)
+	case drop.EventObjectVerification:
+		switch event.Verb {
+		case drop.EventVerbRunning:
+			fmt.Printf("  🛡️  %s\n", w("Verifying artifact..."))
+		case drop.EventVerbSkipped:
+			fmt.Printf("  🚫  %s\n", w("Security verification skipped"))
+		case drop.EventVerbDone:
+			if s := event.GetDataField("passed"); s != "" {
+				if s == flagTrue {
+					fmt.Println("      ✅  PASS")
+				} else {
+					fmt.Println("      ❌  FAIL")
+				}
+			} else {
+				fmt.Println("      ✔️  done")
+			}
+		}
+	}
+}
+
+// handleInstallEvent renders the events of installing and removing artifacts.
+func (l *Listener) handleInstallEvent(event *drop.Event) {
+	switch event.Object {
 	case drop.EventObjectInstall:
 		switch event.Verb {
 		case drop.EventVerbRunning:
@@ -108,22 +133,22 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 				fmt.Printf("      ℹ️  %s\n", reason)
 			}
 		}
-	case drop.EventObjectVerification:
+	case drop.EventObjectRemove:
 		switch event.Verb {
 		case drop.EventVerbRunning:
-			fmt.Printf("  🛡️  %s\n", w("Verifying artifact..."))
-		case drop.EventVerbSkipped:
-			fmt.Printf("  🚫  %s\n", w("Security verification skipped"))
-		case drop.EventVerbDone:
-			if s := event.GetDataField("passed"); s != "" {
-				if s == flagTrue {
-					fmt.Println("      ✅  PASS")
-				} else {
-					fmt.Println("      ❌  FAIL")
-				}
-			} else {
-				fmt.Println("      ✔️  done")
+			sudo := ""
+			if event.GetDataField("sudo") == flagTrue {
+				sudo = " with sudo (you may be asked for your password)"
 			}
+			if event.GetDataField("kind") == string(drop.ArtifactPackage) {
+				format := event.GetDataField("format")
+				fmt.Printf("  🧹 %s\n", w(fmt.Sprintf("Removing previous %s package%s...", format, sudo)))
+			} else {
+				path := event.GetDataField("path")
+				fmt.Printf("  🧹 %s\n", w(fmt.Sprintf("Removing previous binary %s%s...", path, sudo)))
+			}
+		case drop.EventVerbDone:
+			fmt.Println("      ✔️  done")
 		}
 	}
 }

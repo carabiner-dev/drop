@@ -47,6 +47,7 @@ func (f *fakeRunner) LookPath(file string) (string, error) {
 }
 
 const (
+	testOptBin  = "/opt/bin"
 	testAppName = "drop"
 	testBinFile = "drop-linux-amd64"
 	testTgzFile = "drop-linux-amd64.tar.gz"
@@ -615,7 +616,7 @@ func TestRecordInstall(t *testing.T) {
 			check: func(t *testing.T, r *inventory.Record) {
 				t.Helper()
 				require.Equal(t, string(ArtifactBinary), r.Kind)
-				require.Equal(t, filepath.Join("/opt/bin", testAppName), r.BinPath)
+				require.Equal(t, filepath.Join(testOptBin, testAppName), r.BinPath)
 				require.Empty(t, r.PackageFormat)
 				require.True(t, r.Verified)
 			},
@@ -643,7 +644,7 @@ func TestRecordInstall(t *testing.T) {
 			verified: true,
 			check: func(t *testing.T, r *inventory.Record) {
 				t.Helper()
-				require.Equal(t, filepath.Join("/opt/bin", "dropper"), r.BinPath,
+				require.Equal(t, filepath.Join(testOptBin, "dropper"), r.BinPath,
 					"the file lands under its install name")
 			},
 		},
@@ -657,7 +658,7 @@ func TestRecordInstall(t *testing.T) {
 			check: func(t *testing.T, r *inventory.Record) {
 				t.Helper()
 				require.Equal(t, string(ArtifactArchive), r.Kind)
-				require.Equal(t, filepath.Join("/opt/bin", "dropper"), r.BinPath)
+				require.Equal(t, filepath.Join(testOptBin, "dropper"), r.BinPath)
 				require.Equal(t, "drop-1.0/bin/dropper", r.ArchiveEntry)
 				require.Empty(t, r.PackageFormat)
 			},
@@ -670,7 +671,7 @@ func TestRecordInstall(t *testing.T) {
 
 			invPath := filepath.Join(t.TempDir(), "installed.json")
 			di := &defaultImplementation{inventoryPath: invPath}
-			opts := &GetOptions{BinDir: "/opt/bin"}
+			opts := &GetOptions{BinDir: testOptBin}
 
 			require.NoError(t, di.RecordInstall(opts, tc.artifact, downloaded, tc.verified))
 
@@ -763,4 +764,192 @@ func TestClassifyGoreleaserStyleRelease(t *testing.T) {
 	artifact, err := decideArtifact(cands, &GetOptions{}, nil)
 	require.NoError(t, err)
 	require.Equal(t, ArtifactArchive, artifact.Kind)
+}
+
+func TestApplyPreviousInstall(t *testing.T) {
+	t.Parallel()
+	archiveRecord := &inventory.Record{
+		Name: testAppName, Version: "v1.0.0", Kind: string(ArtifactArchive),
+		BinPath: "/opt/bin/drop", ArchiveEntry: "drop-1.0/bin/drop",
+	}
+	for _, tc := range []struct {
+		name        string
+		record      *inventory.Record
+		opts        GetOptions
+		expectErr   error
+		expectType  string
+		expectEntry string
+	}{
+		{name: "not-installed", record: nil, opts: GetOptions{}},
+		{
+			name: "installed-refused", record: &inventory.Record{Name: testAppName, Version: "v1.0.0", Kind: string(ArtifactBinary)},
+			opts: GetOptions{}, expectErr: ErrAlreadyInstalled,
+		},
+		{
+			name: "reinstall-binary-defaults", record: &inventory.Record{Name: testAppName, Kind: string(ArtifactBinary)},
+			opts: GetOptions{Reinstall: true}, expectType: "b",
+		},
+		{
+			name: "reinstall-package-defaults", record: &inventory.Record{Name: testAppName, Kind: string(ArtifactPackage)},
+			opts: GetOptions{Reinstall: true}, expectType: "p",
+		},
+		{
+			name: "reinstall-archive-defaults", record: archiveRecord,
+			opts: GetOptions{Reinstall: true}, expectType: "a", expectEntry: "drop-1.0/bin/drop",
+		},
+		{
+			name: "reinstall-explicit-type-wins", record: archiveRecord,
+			opts: GetOptions{Reinstall: true, DownloadType: "b"}, expectType: "b", expectEntry: "",
+		},
+		{
+			name: "reinstall-explicit-entry-wins", record: archiveRecord,
+			opts: GetOptions{Reinstall: true, ArchiveEntry: "other/drop"}, expectType: "a", expectEntry: "other/drop",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			opts := tc.opts
+			err := applyPreviousInstall(&opts, tc.record)
+			if tc.expectErr != nil {
+				require.ErrorIs(t, err, tc.expectErr)
+				require.ErrorContains(t, err, "drop v1.0.0 is already installed")
+				require.Nil(t, opts.previous)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.record, opts.previous)
+			require.Equal(t, tc.expectType, opts.DownloadType)
+			require.Equal(t, tc.expectEntry, opts.ArchiveEntry)
+		})
+	}
+}
+
+func TestStaleInstall(t *testing.T) {
+	t.Parallel()
+	binary := &InstallArtifact{Kind: ArtifactBinary, InstallName: testAppName}
+	archive := &InstallArtifact{Kind: ArtifactArchive, InstallName: testAppName}
+	pkg := &InstallArtifact{Kind: ArtifactPackage, InstallName: testAppName}
+	for _, tc := range []struct {
+		name     string
+		previous *inventory.Record
+		artifact *InstallArtifact
+		binDir   string
+		expect   bool
+	}{
+		{name: "first-install", previous: nil, artifact: binary, binDir: testOptBin},
+		{name: "package-to-package", previous: &inventory.Record{Kind: string(ArtifactPackage)}, artifact: pkg},
+		{name: "package-to-binary", previous: &inventory.Record{Kind: string(ArtifactPackage)}, artifact: binary, binDir: testOptBin, expect: true},
+		{name: "package-to-archive", previous: &inventory.Record{Kind: string(ArtifactPackage)}, artifact: archive, binDir: testOptBin, expect: true},
+		{name: "binary-to-package", previous: &inventory.Record{Kind: string(ArtifactBinary), BinPath: "/opt/bin/drop"}, artifact: pkg, expect: true},
+		{name: "binary-same-path", previous: &inventory.Record{Kind: string(ArtifactBinary), BinPath: filepath.Join(testOptBin, testAppName)}, artifact: binary, binDir: testOptBin},
+		{name: "binary-to-archive-same-path", previous: &inventory.Record{Kind: string(ArtifactBinary), BinPath: filepath.Join(testOptBin, testAppName)}, artifact: archive, binDir: testOptBin},
+		{name: "binary-moved-dir", previous: &inventory.Record{Kind: string(ArtifactBinary), BinPath: filepath.Join(testOptBin, testAppName)}, artifact: binary, binDir: "/usr/local/bin", expect: true},
+		{name: "binary-without-path", previous: &inventory.Record{Kind: string(ArtifactBinary)}, artifact: pkg},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.expect, staleInstall(tc.previous, tc.artifact, tc.binDir))
+		})
+	}
+}
+
+func TestBuildPackageRemoveCmd(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		format    string
+		sudo      bool
+		paths     map[string]bool
+		expect    []string
+		expectErr bool
+	}{
+		{
+			name: "rpm-dnf-sudo", format: system.PackageRPM, sudo: true,
+			paths:  map[string]bool{cmdDnf: true, cmdYum: true, cmdSudo: true},
+			expect: []string{cmdSudo, cmdDnf, verbRemove, "-y", testAppName},
+		},
+		{
+			name: "rpm-yum-fallback", format: system.PackageRPM,
+			paths: map[string]bool{cmdYum: true}, expect: []string{cmdYum, verbRemove, "-y", testAppName},
+		},
+		{
+			name: "rpm-rpm-fallback", format: system.PackageRPM,
+			paths: map[string]bool{cmdRPM: true}, expect: []string{cmdRPM, "-e", testAppName},
+		},
+		{name: "rpm-no-manager", format: system.PackageRPM, paths: map[string]bool{}, expectErr: true},
+		{
+			name: "deb-apt", format: system.PackageDeb,
+			paths: map[string]bool{cmdApt: true, cmdDpkg: true}, expect: []string{cmdApt, verbRemove, "-y", testAppName},
+		},
+		{
+			name: "deb-dpkg-fallback", format: system.PackageDeb,
+			paths: map[string]bool{cmdDpkg: true}, expect: []string{cmdDpkg, "-r", testAppName},
+		},
+		{
+			name: "apk", format: system.PackageApk,
+			paths: map[string]bool{cmdApk: true}, expect: []string{cmdApk, "del", testAppName},
+		},
+		{name: "sudo-missing", format: system.PackageApk, sudo: true, paths: map[string]bool{cmdApk: true}, expectErr: true},
+		{name: "unsupported", format: system.PackageDmg, paths: map[string]bool{}, expectErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			runner := &fakeRunner{paths: tc.paths}
+			argv, err := buildPackageRemoveCmd(tc.format, testAppName, tc.sudo, runner.LookPath)
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expect, argv)
+		})
+	}
+}
+
+func TestRemoveInstalledPackage(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{paths: map[string]bool{cmdDnf: true, cmdSudo: true}}
+	di := &defaultImplementation{runner: runner}
+	opts := &GetOptions{}
+	opts.Listener = &NoopListener{}
+	record := &inventory.Record{
+		Name: testAppName, Kind: string(ArtifactPackage), PackageFormat: system.PackageRPM,
+	}
+
+	require.NoError(t, di.RemoveInstalled(opts, record))
+	require.Len(t, runner.run, 1)
+	if os.Geteuid() == 0 {
+		require.Equal(t, []string{cmdDnf, verbRemove, "-y", testAppName}, runner.run[0])
+	} else {
+		require.Equal(t, []string{cmdSudo, cmdDnf, verbRemove, "-y", testAppName}, runner.run[0])
+	}
+
+	runner.runErr = errors.New("dnf failed")
+	require.ErrorContains(t, di.RemoveInstalled(opts, record), "removing rpm package")
+}
+
+func TestRemoveInstalledBinary(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{paths: map[string]bool{cmdSudo: true}}
+	di := &defaultImplementation{runner: runner}
+	opts := &GetOptions{}
+	opts.Listener = &NoopListener{}
+
+	binPath := filepath.Join(t.TempDir(), testAppName)
+	require.NoError(t, os.WriteFile(binPath, []byte("old"), 0o755)) //nolint:gosec
+
+	for _, kind := range []ArtifactKind{ArtifactBinary, ArtifactArchive} {
+		record := &inventory.Record{Name: testAppName, Kind: string(kind), BinPath: binPath}
+		require.NoError(t, os.WriteFile(binPath, []byte("old"), 0o755)) //nolint:gosec
+		require.NoError(t, di.RemoveInstalled(opts, record))
+		require.NoFileExists(t, binPath, "writable directories are cleaned directly")
+		require.Empty(t, runner.run, "no sudo when the directory is writable")
+
+		// A binary that is already gone is not an error
+		require.NoError(t, di.RemoveInstalled(opts, record))
+	}
+
+	// Records without a path have nothing to remove
+	require.NoError(t, di.RemoveInstalled(opts, &inventory.Record{Name: testAppName, Kind: string(ArtifactBinary)}))
+	require.Error(t, di.RemoveInstalled(opts, &inventory.Record{Name: testAppName, Kind: "other"}))
 }
