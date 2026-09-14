@@ -593,7 +593,7 @@ func TestRecordInstall(t *testing.T) {
 	wantDigest := hex.EncodeToString(sum[:])
 
 	asset := &github.Asset{
-		Host:    "github.com",
+		Host:    github.DefaultHost,
 		Org:     testOrg,
 		Repo:    testAppName,
 		Version: "v0.1.0",
@@ -953,4 +953,75 @@ func TestRemoveInstalledBinary(t *testing.T) {
 	// Records without a path have nothing to remove
 	require.NoError(t, di.RemoveInstalled(opts, &inventory.Record{Name: testAppName, Kind: string(ArtifactBinary)}))
 	require.Error(t, di.RemoveInstalled(opts, &inventory.Record{Name: testAppName, Kind: "other"}))
+}
+
+func TestFindInstallable(t *testing.T) {
+	t.Parallel()
+	inst := func(name string, variants ...*github.Asset) *github.Installable {
+		return &github.Installable{Name: name, Variants: variants}
+	}
+	linux := &github.Asset{Name: "x-linux-amd64.tar.gz", Os: system.OSLinux, Arch: system.ArchAMD64}
+	darwin := &github.Asset{Name: "x-darwin-arm64.tar.gz", Os: system.OSDarwin, Arch: system.ArchArm64}
+	// A variant whose architecture was not recognized (leaked into the name)
+	noArch := &github.Asset{Name: "x-2.0-loongarch64-unknown-linux.tar.gz", Os: system.OSLinux}
+	spec := func(name string) *github.Asset {
+		return &github.Asset{Host: github.DefaultHost, Org: "atomdrift-project", Repo: "scan", Name: name}
+	}
+
+	for _, tc := range []struct {
+		name      string
+		assets    []github.AssetDataProvider
+		spec      *github.Asset
+		expect    string // installable name, "" = nil
+		expectErr error
+	}{
+		{
+			name:   "named-after-repo",
+			assets: []github.AssetDataProvider{inst("atomscan", linux), inst("scan", linux)},
+			spec:   spec(""), expect: "scan",
+		},
+		{
+			name:   "explicit-name",
+			assets: []github.AssetDataProvider{inst("atomscan", linux), inst("scan", linux)},
+			spec:   spec("atomscan"), expect: "atomscan",
+		},
+		{
+			name:   "explicit-name-never-guessed",
+			assets: []github.AssetDataProvider{inst("atomscan", linux)},
+			spec:   spec("other"), expect: "",
+		},
+		{
+			name:   "fallback-to-only-installable-for-platform",
+			assets: []github.AssetDataProvider{inst("atomscan", linux, darwin), inst("atomscan-2.0-loongarch64-unknown", noArch), &github.Asset{Name: "SHA256SUMS"}},
+			spec:   spec(""), expect: "atomscan",
+		},
+		{
+			name:   "no-installable-for-platform",
+			assets: []github.AssetDataProvider{inst("atomscan", darwin)},
+			spec:   spec(""), expect: "",
+		},
+		{
+			name:   "ambiguous",
+			assets: []github.AssetDataProvider{inst("atomscan", linux), inst("atomctl", linux)},
+			spec:   spec(""), expectErr: ErrAmbiguousInstallable,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			found, err := findInstallable(tc.assets, tc.spec, system.OSLinux, system.ArchAMD64)
+			if tc.expectErr != nil {
+				require.ErrorIs(t, err, tc.expectErr)
+				require.ErrorContains(t, err, "atomscan, atomctl")
+				require.ErrorContains(t, err, "github.com/atomdrift-project/scan#<name>")
+				return
+			}
+			require.NoError(t, err)
+			if tc.expect == "" {
+				require.Nil(t, found)
+				return
+			}
+			require.NotNil(t, found)
+			require.Equal(t, tc.expect, found.GetName())
+		})
+	}
 }

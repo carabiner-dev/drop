@@ -101,14 +101,58 @@ func (di *defaultImplementation) GetSystemInfo(*Options) (*system.Info, error) {
 
 // findInstallable looks in a list of release assets for the installable (or
 // plain asset) matching the spec name, defaulting to the repository name.
-func findInstallable(assets []github.AssetDataProvider, spec github.AssetDataProvider) github.AssetDataProvider {
+// findInstallable returns the installable (or plain asset) a spec points to.
+// The spec name, defaulting to the repository name, is matched first. When
+// the spec carries no name and nothing in the release is named after the
+// repository, the fallback is the only installable shipping a variant for
+// the platform (releases often name binaries differently than the repo).
+// Several such installables are an error listing them, so the user can pick
+// one with the #name syntax. Nothing matching returns nil without error.
+func findInstallable(assets []github.AssetDataProvider, spec github.AssetDataProvider, osName, arch string) (github.AssetDataProvider, error) {
 	name := specName(spec)
 	for _, asset := range assets {
 		if asset.GetName() == name {
-			return asset
+			return asset, nil
 		}
 	}
-	return nil
+
+	// An explicit name is never second-guessed
+	if spec.GetName() != "" {
+		return nil, nil
+	}
+
+	candidates := []string{}
+	var found github.AssetDataProvider
+	for _, asset := range assets {
+		inst, ok := asset.(*github.Installable)
+		if !ok || !hasVariant(inst, osName, arch) {
+			continue
+		}
+		candidates = append(candidates, inst.GetName())
+		found = inst
+	}
+	switch len(candidates) {
+	case 0:
+		return nil, nil
+	case 1:
+		logrus.Debugf("no asset named %q, using the only installable for %s/%s: %s", name, osName, arch, candidates[0])
+		return found, nil
+	default:
+		return nil, fmt.Errorf(
+			"%w for %s/%s (%s): pick one with %s/%s/%s#<name>", ErrAmbiguousInstallable,
+			osName, arch, strings.Join(candidates, ", "), spec.GetHost(), spec.GetOrg(), spec.GetRepo(),
+		)
+	}
+}
+
+// hasVariant reports if an installable ships a variant for a platform.
+func hasVariant(inst *github.Installable, osName, arch string) bool {
+	for _, v := range inst.Variants {
+		if v.Os == osName && v.Arch == arch {
+			return true
+		}
+	}
+	return false
 }
 
 // ChooseAsset selects an installable matching the spec name and local platform
@@ -118,7 +162,11 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 		return nil, fmt.Errorf("fetching release assets: %w", err)
 	}
 
-	if asset := findInstallable(assets, spec); asset != nil {
+	asset, err := findInstallable(assets, spec, opts.OS, opts.Arch)
+	if err != nil {
+		return nil, err
+	}
+	if asset != nil {
 		// Found. Now check if it has variants for the local OS
 		if installable, ok := asset.(*github.Installable); ok {
 			var wantedVariant github.AssetDataProvider

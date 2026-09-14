@@ -9,7 +9,7 @@ import (
 
 func TestMainSplitPattern(t *testing.T) {
 	s := MainSplitPattern()
-	require.Equal(t, "(?i)(aarch64|armv7hl|freebsd|illumos|openbsd|ppc64el|ppc64le|riscv64|solaris|windows|darwin|netbsd|x86_64|32bit|64bit|amd64|arm64|armhf|armv7|linux|macos|ppc64|s390x|i386|i686|386|arm|osx|x64|x86)", s)
+	require.Equal(t, "(?i)(loongarch64|powerpc64le|powerpc64|riscv64gc|aarch64|armv7hl|freebsd|illumos|loong64|openbsd|ppc64el|ppc64le|riscv64|solaris|windows|darwin|netbsd|x86_64|32bit|64bit|amd64|arm64|armhf|armv7|linux|macos|ppc64|s390x|i386|i686|386|arm|osx|x64|x86)", s)
 }
 
 func TestParseOSReleaseForFamily(t *testing.T) {

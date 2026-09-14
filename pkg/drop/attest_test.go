@@ -103,7 +103,7 @@ func testResultSet(status string) *papi.ResultSet {
 
 func testAsset() *github.Asset {
 	return &github.Asset{
-		Host: "github.com", Org: testOrg, Repo: testAppName,
+		Host: github.DefaultHost, Org: testOrg, Repo: testAppName,
 		Version: testVersion, Name: testBinFile, DownloadURL: testAssetURL,
 	}
 }

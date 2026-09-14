@@ -233,3 +233,44 @@ func TestAssetListToInstallableList(t *testing.T) {
 		})
 	}
 }
+
+// TestRustTargetTriples checks that assets named after Rust target triples
+// (arch first, then vendor and OS) are grouped into a single installable,
+// including the architectures drop does not install on.
+func TestRustTargetTriples(t *testing.T) {
+	t.Parallel()
+	files := []string{
+		"atomscan-2.11.0-aarch64-apple-darwin.tar.gz",
+		"atomscan-2.11.0-aarch64-unknown-linux-gnu.tar.gz",
+		"atomscan-2.11.0-loongarch64-unknown-linux-musl.tar.gz",
+		"atomscan-2.11.0-powerpc64le-unknown-linux-gnu.tar.gz",
+		"atomscan-2.11.0-riscv64gc-unknown-linux-gnu.tar.gz",
+		"atomscan-2.11.0-s390x-unknown-linux-gnu.tar.gz",
+		"atomscan-2.11.0-x86_64-pc-windows-msvc.tar.gz",
+		"atomscan-2.11.0-x86_64-unknown-linux-gnu.tar.gz",
+		"SHA256SUMS",
+	}
+	expectArch := map[string]string{
+		files[0]: system.ArchArm64, files[1]: system.ArchArm64, files[2]: system.ArchLoong64,
+		files[3]: system.ArchPPC64LE, files[4]: system.ArchRiscV64, files[5]: system.ArchS390X,
+		files[6]: system.ArchX8664, files[7]: system.ArchX8664, files[8]: "",
+	}
+	assets := make([]AssetDataProvider, 0, len(files))
+	for _, f := range files {
+		require.Equal(t, expectArch[f], getArchFromFilename(f), f)
+		assets = append(assets, &Asset{Name: f, Version: "v2.11.0"})
+	}
+
+	list := assetListToInstallableList(assets)
+	require.Len(t, list, 2, "one installable plus the checksums file")
+	names := make([]string, 0, len(list))
+	for _, a := range list {
+		names = append(names, a.GetName())
+	}
+	require.ElementsMatch(t, []string{"atomscan", "SHA256SUMS"}, names)
+	for _, a := range list {
+		if inst, ok := a.(*Installable); ok {
+			require.Len(t, inst.Variants, 8)
+		}
+	}
+}
