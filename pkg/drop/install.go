@@ -26,6 +26,7 @@ import (
 var (
 	ErrNoInstallableArtifact = errors.New("release has no binary or compatible package for this platform")
 	ErrOnlyArchives          = errors.New("release only ships archives in unsupported formats for this platform")
+	ErrAmbiguousInstallable  = errors.New("release ships several installables")
 )
 
 // ArtifactKind distinguishes the kinds of artifacts the installer can handle.
@@ -488,7 +489,10 @@ func (di *defaultImplementation) SelectInstallArtifact(
 		pkgFormat = ""
 	}
 
-	found := findInstallable(assets, spec)
+	found, err := findInstallable(assets, spec, opts.OS, opts.Arch)
+	if err != nil {
+		return nil, err
+	}
 	if found == nil {
 		// Check the variant filenames in case the user pinned an exact file
 		// in the URL spec:
