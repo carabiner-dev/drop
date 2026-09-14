@@ -17,6 +17,7 @@ require (
 	github.com/in-toto/attestation v1.2.0
 	github.com/klauspost/compress v1.20.0
 	github.com/mattn/go-isatty v0.0.24
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/rodaine/table v1.3.1
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
@@ -202,7 +203,6 @@ require (
 	github.com/package-url/packageurl-go v0.1.7 // indirect
 	github.com/pandatix/go-cvss v0.6.4 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
-	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/protobom/cel v0.1.3 // indirect
 	github.com/protobom/protobom v0.6.1 // indirect

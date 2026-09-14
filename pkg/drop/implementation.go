@@ -216,9 +216,7 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 
 // FetchPolicies reads the artifact policies from the specified repo
 func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*papi.PolicySet, error) {
-	repoBaseUrl := fmt.Sprintf(
-		"https://%s/%s/%s", asset.GetHost(), asset.GetOrg(), defaultPolicyRepo,
-	)
+	repoBaseUrl := DefaultPolicyRepository(asset.GetHost(), asset.GetOrg())
 	if opts.PolicyRepository != "" {
 		repoBaseUrl = opts.PolicyRepository
 	}

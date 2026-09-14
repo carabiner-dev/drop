@@ -1,0 +1,48 @@
+// SPDX-FileCopyrightText: Copyright 2025 Carabiner Systems, Inc
+// SPDX-License-Identifier: Apache-2.0
+
+package drop
+
+import (
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/carabiner-dev/drop/pkg/github"
+)
+
+const testGoreleaser = "goreleaser"
+
+func TestPolicyRequest(t *testing.T) {
+	t.Parallel()
+	req := &PolicyRequest{
+		Host: github.DefaultHost, Org: testGoreleaser, Repo: testGoreleaser,
+		Version: "v1.2.3", Platform: "linux/amd64",
+	}
+
+	require.Equal(t, "🛡️ Community Policies Request: goreleaser/goreleaser", req.Title())
+	require.Equal(t, "https://github.com/goreleaser/goreleaser", req.RepositoryURL())
+
+	body := req.Body()
+	require.Contains(t, body, "https://github.com/goreleaser/.ampel", "the default policy source is named")
+	require.Contains(t, body, "linux/amd64")
+	require.Contains(t, body, "v1.2.3")
+
+	u, err := url.Parse(req.URL())
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(req.URL(), DropRepositoryURL+"/issues/new?"))
+	require.Equal(t, req.Title(), u.Query().Get("title"))
+	require.Equal(t, body, u.Query().Get("body"))
+
+	// An alternative policy source is reported instead of the default
+	req.PolicyRepository = "https://github.com/carabiner-dev/policies"
+	require.Contains(t, req.Body(), "https://github.com/carabiner-dev/policies")
+	require.NotContains(t, req.Body(), ".ampel")
+}
+
+func TestDefaultPolicyRepository(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "https://github.com/goreleaser/.ampel", DefaultPolicyRepository("github.com", "goreleaser"))
+}

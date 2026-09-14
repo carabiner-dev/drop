@@ -246,7 +246,10 @@ of %s policies to secure their releases ✨
 				drop.WithAttestationPath(opts.Out),
 			); err != nil {
 				if errors.Is(err, drop.ErrNoPolicyAvailable) {
-					return fmt.Errorf("%w (%s)", err, noPolicyHint)
+					if !opts.Quiet {
+						fmt.Println(noPolicyMessage("get", asset, opts.PolicyRepo))
+					}
+					return fmt.Errorf("%w (run \"drop request %s/%s\", set %s or use %s)", err, asset.Org, asset.Repo, flagPolicyRepo, flagInsecure)
 				}
 				return fmt.Errorf("error downloading: %w", err)
 			}

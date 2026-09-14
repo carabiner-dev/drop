@@ -271,7 +271,10 @@ writes the bare statement.
 				case errors.Is(err, drop.ErrNoMatchingArchiveEntry):
 					return fmt.Errorf("%w (pick one with --entry or run interactively)", err)
 				case errors.Is(err, drop.ErrNoPolicyAvailable):
-					return fmt.Errorf("%w (%s)", err, noPolicyHint)
+					if !opts.Quiet {
+						fmt.Println(noPolicyMessage("install", asset, opts.PolicyRepo))
+					}
+					return fmt.Errorf("%w (run \"drop request %s/%s\", set %s or use %s)", err, asset.Org, asset.Repo, flagPolicyRepo, flagInsecure)
 				case errors.Is(err, drop.ErrAlreadyInstalled):
 					return fmt.Errorf("%w (run \"drop update\" to upgrade or reinstall with --force)", err)
 				}

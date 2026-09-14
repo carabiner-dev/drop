@@ -11,18 +11,51 @@ import (
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/release-utils/log"
 	"sigs.k8s.io/release-utils/version"
+
+	"github.com/carabiner-dev/drop/pkg/drop"
+	"github.com/carabiner-dev/drop/pkg/github"
 )
 
 const (
 	appname = "drop"
 	arr     = `↘`
 
-	// noPolicyHint explains how to proceed when a publisher ships no
-	// verification policies for an artifact.
-	noPolicyHint = "the publisher has no policies for this artifact; " +
-		"point --policy-repo to a repository that defines them, " +
-		"or skip verification with --insecure"
+	// flagPolicyRepo and flagInsecure name the flags mentioned in messages
+	flagPolicyRepo = "--policy-repo"
+	flagInsecure   = "--insecure"
 )
+
+// noPolicyMessage explains that an artifact cannot be verified because its
+// publisher has no policies, and lists the ways to proceed: requesting
+// community policies, using another policy source or skipping verification.
+// The subcommand name is used to build the example commands.
+func noPolicyMessage(subcommand string, asset *github.Asset, policyRepo string) string {
+	slug := asset.Org + "/" + asset.Repo
+	if policyRepo == "" {
+		policyRepo = drop.DefaultPolicyRepository(asset.Host, asset.Org)
+	}
+	return fmt.Sprintf(`
+  ❌ %s
+
+  %s verifies every artifact against its publisher's policies before
+  installing it, and this project has none yet (looked in %s).
+  You have three options:
+
+    1. Ask the drop project to write community policies for it:
+         %s request %s
+
+    2. Use policies from another repository or a local checkout:
+         %s %s %s=<repo> %s
+
+    3. Skip verification (not recommended):
+         %s %s %s %s
+`,
+		w(fmt.Sprintf("No verification policies found for %s", slug)), appname, policyRepo,
+		appname, slug,
+		appname, subcommand, flagPolicyRepo, slug,
+		appname, subcommand, flagInsecure, slug,
+	)
+}
 
 var (
 	w  = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
@@ -122,6 +155,7 @@ func Execute() {
 	addGet(rootCmd)
 	addCheckUpdate(rootCmd)
 	addUpdate(rootCmd)
+	addRequest(rootCmd)
 	rootCmd.AddCommand(version.WithFont("doom"))
 
 	if err := rootCmd.Execute(); err != nil {
