@@ -4,9 +4,9 @@ go 1.26.5
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/carabiner-dev/ampel v1.3.8
+	github.com/carabiner-dev/ampel v1.3.10
 	github.com/carabiner-dev/attestation v0.2.1
-	github.com/carabiner-dev/collector v0.3.15
+	github.com/carabiner-dev/collector v0.3.16
 	github.com/carabiner-dev/hasher v0.2.4
 	github.com/carabiner-dev/policy v0.5.5
 	github.com/carabiner-dev/predicates v0.5.1
@@ -84,7 +84,7 @@ require (
 	github.com/carabiner-dev/osv v0.1.2 // indirect
 	github.com/carabiner-dev/sbomfs v0.2.0 // indirect
 	github.com/carabiner-dev/spdx3 v0.1.0 // indirect
-	github.com/carabiner-dev/stash v0.0.0-20260907173633-c7ccf2e6d134 // indirect
+	github.com/carabiner-dev/stash v0.0.0-20260908191435-d6225e020426 // indirect
 	github.com/carabiner-dev/vcslocator v0.5.0 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -120,7 +120,7 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.1 // indirect
 	github.com/go-git/go-git/v5 v5.19.2 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.5 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.26.0 // indirect
@@ -198,7 +198,7 @@ require (
 	github.com/olekukonko/tablewriter v1.1.4 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/openvex/go-vex v0.2.8 // indirect
+	github.com/openvex/go-vex v0.2.9 // indirect
 	github.com/ossf/osv-schema/bindings/go v0.0.0-20260730052020-9509daabeece // indirect
 	github.com/package-url/packageurl-go v0.1.7 // indirect
 	github.com/pandatix/go-cvss v0.6.4 // indirect
@@ -210,7 +210,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sassoftware/relic/v8 v8.2.0 // indirect
-	github.com/secure-systems-lab/go-securesystemslib v0.11.0 // indirect
+	github.com/secure-systems-lab/go-securesystemslib v0.11.1 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
 	github.com/sigstore/cosign/v3 v3.1.2 // indirect
@@ -233,7 +233,7 @@ require (
 	github.com/theupdateframework/go-tuf/v2 v2.4.2 // indirect
 	github.com/tink-crypto/tink-go-awskms/v3 v3.0.0 // indirect
 	github.com/tink-crypto/tink-go-gcpkms/v2 v2.4.0 // indirect
-	github.com/tink-crypto/tink-go/v2 v2.7.0 // indirect
+	github.com/tink-crypto/tink-go/v2 v2.8.0 // indirect
 	github.com/transparency-dev/formats v0.1.1 // indirect
 	github.com/transparency-dev/merkle v0.0.2 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
