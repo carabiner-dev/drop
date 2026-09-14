@@ -221,17 +221,15 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		repoBaseUrl = opts.PolicyRepository
 	}
 
+	policyPath := PolicyPath(asset.GetRepo())
 	opts.Listener.HandleEvent(
 		&Event{
 			Object: EventObjectPolicy, Verb: EventVerbGet,
-			Data: map[string]string{"repo": repoBaseUrl},
+			Data: map[string]string{"repo": repoBaseUrl, dataKeyPath: policyPath},
 		},
 	)
 
-	locator := fmt.Sprintf(
-		"%s#policy/%s/%s/%s", repoBaseUrl,
-		asset.GetHost(), asset.GetOrg(), asset.GetRepo(),
-	)
+	locator := fmt.Sprintf("%s#%s", repoBaseUrl, policyPath)
 
 	logrus.Debugf("Fetching policies from %s", locator)
 

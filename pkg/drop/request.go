@@ -18,9 +18,16 @@ const DropRepositoryURL = "https://github.com/carabiner-dev/drop"
 const PolicyRequestTitlePrefix = "✨ Community Policies Request: "
 
 // DefaultPolicyRepository returns the URL of the repository where drop looks
-// for the policies of a publisher when no alternative source is configured.
+// for the policies of a publisher when no alternative source is configured:
+// the organization's .github repository.
 func DefaultPolicyRepository(host, org string) string {
 	return fmt.Sprintf("https://%s/%s/%s", host, org, defaultPolicyRepo)
+}
+
+// PolicyPath returns the directory inside a policy repository holding the
+// release policies of a repository.
+func PolicyPath(repo string) string {
+	return policyPathPrefix + "/" + repo
 }
 
 // PolicyRequest describes a request for the drop project to write community
@@ -75,11 +82,11 @@ func (pr *PolicyRequest) Body() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "## Community policies request\n\n")
 	fmt.Fprintf(&b, "Please consider writing community policies for **%s** (%s).\n\n", pr.Slug(), pr.RepositoryURL())
-	fmt.Fprintf(&b, "`drop` looked for policies in %s and found none, so the artifacts ", policyRepo)
-	fmt.Fprintf(&b, "this project releases cannot be verified before installing them.\n\n")
+	fmt.Fprintf(&b, "`drop` looked for policies in %s (under `%s/`) and found none, ", policyRepo, PolicyPath(pr.Repo))
+	fmt.Fprintf(&b, "so the artifacts this project releases cannot be verified before installing them.\n\n")
 	fmt.Fprintf(&b, "### Details\n\n")
 	fmt.Fprintf(&b, "- Repository: %s\n", pr.RepositoryURL())
-	fmt.Fprintf(&b, "- Policy source checked: %s\n", policyRepo)
+	fmt.Fprintf(&b, "- Policy source checked: %s (`%s/`)\n", policyRepo, PolicyPath(pr.Repo))
 	if pr.Release != "" {
 		fmt.Fprintf(&b, "- Release checked: [%s](%s)\n", pr.Release, pr.ReleaseURL())
 	}

@@ -27,7 +27,8 @@ func TestPolicyRequest(t *testing.T) {
 	require.Equal(t, "https://github.com/goreleaser/goreleaser/releases/tag/v2.18.1", req.ReleaseURL())
 
 	body := req.Body()
-	require.Contains(t, body, "https://github.com/goreleaser/.ampel", "the default policy source is named")
+	require.Contains(t, body, "https://github.com/goreleaser/.github", "the default policy source is named")
+	require.Contains(t, body, "`ampel/policies/release/goreleaser/`", "the policy path is named")
 	require.Contains(t, body, "linux/amd64")
 	require.Contains(t, body, "[v2.18.1](https://github.com/goreleaser/goreleaser/releases/tag/v2.18.1)")
 	require.Contains(t, body, "v1.2.3")
@@ -41,7 +42,7 @@ func TestPolicyRequest(t *testing.T) {
 	// An alternative policy source is reported instead of the default
 	req.PolicyRepository = "https://github.com/carabiner-dev/policies"
 	require.Contains(t, req.Body(), "https://github.com/carabiner-dev/policies")
-	require.NotContains(t, req.Body(), ".ampel")
+	require.NotContains(t, req.Body(), ".github")
 
 	// Without a release nothing is claimed about one
 	req.Release = ""
@@ -51,5 +52,10 @@ func TestPolicyRequest(t *testing.T) {
 
 func TestDefaultPolicyRepository(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, "https://github.com/goreleaser/.ampel", DefaultPolicyRepository("github.com", "goreleaser"))
+	require.Equal(t, "https://github.com/goreleaser/.github", DefaultPolicyRepository("github.com", "goreleaser"))
+}
+
+func TestPolicyPath(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "ampel/policies/release/goreleaser", PolicyPath("goreleaser"))
 }

@@ -110,11 +110,12 @@ file published as a release asset.
 
 %s
 
-By default, %s looks for attestations published along the artifacts and 
-security policies in a specially named .ampel directory in the same GitHub
-organization where the files are hosted. You can specify an alternative 
-policy repository with --policy-repo, either another GitHub repository or
-the path of a local git checkout (its committed contents are read):
+By default, %s looks for attestations published along the artifacts and
+security policies in the .github repository of the GitHub organization where
+the files are hosted, under ampel/policies/release/<repo>/. You can specify
+an alternative policy repository with --policy-repo, either another GitHub
+repository or the path of a local git checkout (its committed contents are
+read); the same layout is expected inside it:
 
   drop get --policy-repo=./my-policies github.com/org/repo
 

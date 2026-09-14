@@ -48,7 +48,11 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 		case drop.EventVerbGet:
 			repo := ""
 			if s := event.GetDataField("repo"); s != "" {
-				repo = fmt.Sprintf(" (source: %s)", s)
+				repo = fmt.Sprintf(" (source: %s", s)
+				if p := event.GetDataField("path"); p != "" {
+					repo += " " + p + "/"
+				}
+				repo += ")"
 			}
 			fmt.Printf("  💫 %s%s\n", w("Looking for policies"), repo)
 		case drop.EventVerbDone:

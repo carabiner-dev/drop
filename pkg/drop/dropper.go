@@ -14,7 +14,12 @@ import (
 	"github.com/carabiner-dev/drop/pkg/github"
 )
 
-const defaultPolicyRepo = ".ampel"
+// Policies live in the organization's .github repository, under
+// ampel/policies/release/<repo>/
+const (
+	defaultPolicyRepo = ".github"
+	policyPathPrefix  = "ampel/policies/release"
+)
 
 var (
 	ErrNoPolicyAvailable  = errors.New("no verification policies available for artifact")
