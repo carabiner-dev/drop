@@ -52,11 +52,13 @@ community policies for it by opening a prefilled issue in the drop repository:
 
   %s
 
-The issue is filed from your browser, where you are signed in to GitHub, so
-no token is needed. When not running on a terminal (or with --print) the
-link is printed instead, ready to paste into a browser.
+Before filing, %s checks that the repository exists and records
+its latest release in the issue. The issue is filed from your browser, where
+you are signed in to GitHub, so no token is needed. When not running on a
+terminal (or with --print) the link is printed instead, ready to paste into
+a browser.
 
-`, DropBanner("Request community policies for a repository"), appname, w2("request"), drop.DropRepositoryURL+"/issues"),
+`, DropBanner("Request community policies for a repository"), appname, w2("request"), drop.DropRepositoryURL+"/issues", appname),
 		Use:               "request",
 		Example:           fmt.Sprintf(`%s request github.com/org/repo`, appname),
 		SilenceUsage:      false,
@@ -82,12 +84,31 @@ link is printed instead, ready to paste into a browser.
 				asset.Host = github.DefaultHost
 			}
 
+			// Make sure the repository exists and find the release drop
+			// would check for policies, so the request points at it.
+			client, err := github.New()
+			if err != nil {
+				return fmt.Errorf("creating GitHub client: %w", err)
+			}
+			repo, err := client.GetRepository(asset)
+			if err != nil {
+				if errors.Is(err, github.ErrRepositoryNotFound) {
+					return fmt.Errorf("%w (check the spelling: https://%s/%s/%s)", err, asset.Host, asset.Org, asset.Repo)
+				}
+				return err
+			}
+			release, err := client.LatestRelease(repo)
+			if err != nil {
+				return fmt.Errorf("%w (policies verify releases, so the repository needs at least one)", err)
+			}
+
 			info := version.GetVersionInfo()
 			request := &drop.PolicyRequest{
-				Host:             asset.Host,
-				Org:              asset.Org,
-				Repo:             asset.Repo,
+				Host:             repo.Host,
+				Org:              repo.Org,
+				Repo:             repo.Repo,
 				PolicyRepository: opts.PolicyRepo,
+				Release:          release.GetVersion(),
 				Version:          info.GitVersion,
 				Platform:         info.Platform,
 			}
@@ -98,7 +119,7 @@ link is printed instead, ready to paste into a browser.
 				return nil
 			}
 
-			fmt.Printf("  🛡️  %s\n", w(fmt.Sprintf("Requesting community policies for %s", request.Slug())))
+			fmt.Printf("  ✨ %s\n", w(fmt.Sprintf("Requesting community policies for %s (release %s)", request.Slug(), request.Release)))
 			fmt.Printf("  🌐 %s\n", w("Opening the issue in your browser..."))
 			if err := browser.OpenURL(link); err != nil {
 				fmt.Printf("      ⚠️  could not open a browser (%v), file the request here:\n\n  %s\n\n", err, link)

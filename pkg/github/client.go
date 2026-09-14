@@ -42,6 +42,10 @@ func New() (*Client, error) {
 // DefaultHost is the hostname of the public GitHub instance
 const DefaultHost = "github.com"
 
+// ErrRepositoryNotFound is returned when a repository does not exist (or is
+// not visible to the client).
+var ErrRepositoryNotFound = errors.New("repository not found")
+
 type Options struct {
 	Host string
 }
@@ -117,6 +121,24 @@ func NewAssetFromURLString(urlString string) *Asset {
 		Version: version,
 		Name:    artifact,
 	}
+}
+
+// GetRepository fetches a repository, checking that it exists. A missing
+// repository is reported as ErrRepositoryNotFound.
+func (c *Client) GetRepository(rdata RepoDataProvider) (*Repository, error) {
+	repo, _, err := c.client.Repositories.Get(context.Background(), rdata.GetOrg(), rdata.GetRepo())
+	if err != nil {
+		var ghErr *gogithub.ErrorResponse
+		if errors.As(err, &ghErr) && ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("%s/%s: %w", rdata.GetOrg(), rdata.GetRepo(), ErrRepositoryNotFound)
+		}
+		return nil, fmt.Errorf("fetching repository: %w", err)
+	}
+	return &Repository{
+		Host: rdata.GetHost(),
+		Org:  repo.GetOwner().GetLogin(),
+		Repo: repo.GetName(),
+	}, nil
 }
 
 // ListReleases returns a list of the latest releases in a repo

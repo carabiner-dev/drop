@@ -15,7 +15,7 @@ const DropRepositoryURL = "https://github.com/carabiner-dev/drop"
 
 // PolicyRequestTitlePrefix marks community policy request issues so they
 // stand out in the drop repository's issue list.
-const PolicyRequestTitlePrefix = "🛡️ Community Policies Request: "
+const PolicyRequestTitlePrefix = "✨ Community Policies Request: "
 
 // DefaultPolicyRepository returns the URL of the repository where drop looks
 // for the policies of a publisher when no alternative source is configured.
@@ -34,6 +34,9 @@ type PolicyRequest struct {
 	// PolicyRepository is the URL where drop looked for policies
 	PolicyRepository string
 
+	// Release is the tag of the release drop checked for policies
+	Release string
+
 	// Version and Platform of the drop binary filing the request
 	Version  string
 	Platform string
@@ -47,6 +50,15 @@ func (pr *PolicyRequest) Slug() string {
 // RepositoryURL returns the URL of the requested repository.
 func (pr *PolicyRequest) RepositoryURL() string {
 	return fmt.Sprintf("https://%s/%s/%s", pr.Host, pr.Org, pr.Repo)
+}
+
+// ReleaseURL returns the URL of the release that was checked, or an empty
+// string when no release is recorded.
+func (pr *PolicyRequest) ReleaseURL() string {
+	if pr.Release == "" {
+		return ""
+	}
+	return pr.RepositoryURL() + "/releases/tag/" + pr.Release
 }
 
 // Title returns the title of the request issue.
@@ -68,6 +80,9 @@ func (pr *PolicyRequest) Body() string {
 	fmt.Fprintf(&b, "### Details\n\n")
 	fmt.Fprintf(&b, "- Repository: %s\n", pr.RepositoryURL())
 	fmt.Fprintf(&b, "- Policy source checked: %s\n", policyRepo)
+	if pr.Release != "" {
+		fmt.Fprintf(&b, "- Release checked: [%s](%s)\n", pr.Release, pr.ReleaseURL())
+	}
 	if pr.Platform != "" {
 		fmt.Fprintf(&b, "- Platform: %s\n", pr.Platform)
 	}
