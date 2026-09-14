@@ -54,7 +54,11 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 				}
 				repo += ")"
 			}
-			fmt.Printf("  💫 %s%s\n", w("Looking for policies"), repo)
+			what := "Looking for policies"
+			if event.GetDataField(drop.EventDataCommunity) == flagTrue {
+				what = "Looking for community policies"
+			}
+			fmt.Printf("  💫 %s%s\n", w(what), repo)
 		case drop.EventVerbDone:
 			sets := "0"
 			if s := event.GetDataField("count"); s != "" {

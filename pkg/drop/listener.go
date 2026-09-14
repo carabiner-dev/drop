@@ -17,6 +17,9 @@ const (
 	EventVerbRunning = "running"
 	EventVerbSaved   = "saved"
 	EventVerbSkipped = "skipped"
+
+	// EventDataCommunity flags policy events about the community repository
+	EventDataCommunity = "community"
 )
 
 type Event struct {

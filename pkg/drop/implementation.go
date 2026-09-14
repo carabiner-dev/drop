@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -87,6 +88,11 @@ type defaultImplementation struct {
 	// inventoryPath overrides the location of the inventory database,
 	// when empty the default (in the user's config dir) is used.
 	inventoryPath string
+
+	// policyRepository overrides how the default policy repository of an
+	// organization is located (tests point it at local repositories).
+	// When nil, DefaultPolicyRepository is used.
+	policyRepository func(host, org string) string
 }
 
 func (di *defaultImplementation) GetSystemInfo(*Options) (*system.Info, error) {
@@ -217,34 +223,82 @@ func (di *defaultImplementation) ChooseAsset(opts *GetOptions, client *github.Cl
 	return nil, fmt.Errorf("no asset found for %s", spec.GetRepo())
 }
 
-// FetchPolicies reads the artifact policies from the specified repo
+// FetchPolicies reads the policies that apply to an artifact: those its
+// organization publishes (or the ones in the configured policy repository)
+// and, when there are none, the community maintained ones.
 func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.AssetDataProvider) ([]*papi.PolicySet, error) {
-	repoBaseUrl := DefaultPolicyRepository(asset.GetHost(), asset.GetOrg())
+	locate := di.policyRepository
+	if locate == nil {
+		locate = DefaultPolicyRepository
+	}
+	repoBaseUrl := locate(asset.GetHost(), asset.GetOrg())
 	if opts.PolicyRepository != "" {
 		repoBaseUrl = opts.PolicyRepository
 	}
 
 	// Policies are read from two directories of the policy repository:
 	// the organization-wide one, applying to every release, and the
-	// repository's own. Both are read from a single clone.
-	paths := PolicyPaths(asset.GetRepo())
+	// repository's own.
 	opts.Listener.HandleEvent(
 		&Event{
 			Object: EventObjectPolicy, Verb: EventVerbGet,
 			Data: map[string]string{"repo": repoBaseUrl, dataKeyPath: PolicyPathsLabel(asset.GetRepo())},
 		},
 	)
+	sets, err := fetchPolicySets(repoBaseUrl, PolicyPaths(asset.GetRepo()))
+	if err != nil {
+		return nil, err
+	}
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectPolicy, Verb: EventVerbDone,
+			Data: map[string]string{"count": fmt.Sprintf("%d", len(sets))},
+		},
+	)
 
+	// Projects without policies of their own fall back to the community
+	// repository, unless the policy source was set explicitly.
+	if len(sets) > 0 || opts.PolicyRepository != "" || opts.CommunityPolicyRepository == "" {
+		return sets, nil
+	}
+
+	communityPath := CommunityPolicyPath(asset.GetOrg(), asset.GetRepo())
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectPolicy, Verb: EventVerbGet,
+			Data: map[string]string{
+				"repo": opts.CommunityPolicyRepository, dataKeyPath: communityPath + "/",
+				EventDataCommunity: strconv.FormatBool(true),
+			},
+		},
+	)
+	sets, err = fetchPolicySets(opts.CommunityPolicyRepository, []string{communityPath})
+	if err != nil {
+		return nil, err
+	}
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectPolicy, Verb: EventVerbDone,
+			Data: map[string]string{"count": fmt.Sprintf("%d", len(sets)), EventDataCommunity: strconv.FormatBool(true)},
+		},
+	)
+	return sets, nil
+}
+
+// fetchPolicySets reads the policy set attestations found in the given
+// directories of a git repository, all from a single shallow clone. A
+// missing repository or directory yields no policy sets, not an error.
+func fetchPolicySets(repoBaseUrl string, dirs []string) ([]*papi.PolicySet, error) {
 	// Create the git repository for the collector agent
 	arepo, err := gitcollector.New(
-		gitcollector.WithLocator(fmt.Sprintf("%s#%s", repoBaseUrl, paths[0])),
+		gitcollector.WithLocator(fmt.Sprintf("%s#%s", repoBaseUrl, dirs[0])),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating git collector: %w", err)
 	}
 
 	ret := []*papi.PolicySet{}
-	for i, dir := range paths {
+	for i, dir := range dirs {
 		if i > 0 {
 			if err := setCollectorPath(arepo, dir); err != nil {
 				return nil, err
@@ -272,10 +326,10 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		// If there were errors fetching attestations, there are two special
 		// cases we want to handle as non-errors:
 		if err != nil {
-			// 1. The org has no policy repository (this error also returns
-			// if the repository requires auth). Nothing else to read.
+			// 1. The policy repository does not exist (this error also
+			// returns if the repository requires auth). Nothing else to read.
 			if strings.Contains(strings.ToLower(err.Error()), "repository not found") {
-				logrus.Debugf("policy repository does not exist")
+				logrus.Debugf("policy repository %s does not exist", repoBaseUrl)
 				return []*papi.PolicySet{}, nil
 			}
 
@@ -290,13 +344,6 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		}
 		ret = append(ret, parsePolicySets(attestations)...)
 	}
-
-	opts.Listener.HandleEvent(
-		&Event{
-			Object: EventObjectPolicy, Verb: EventVerbDone,
-			Data: map[string]string{"count": fmt.Sprintf("%d", len(ret))},
-		},
-	)
 	return ret, nil
 }
 

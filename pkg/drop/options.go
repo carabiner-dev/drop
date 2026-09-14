@@ -19,7 +19,9 @@ import (
 	"github.com/carabiner-dev/drop/pkg/system"
 )
 
-var defaultOptions = Options{}
+var defaultOptions = Options{
+	CommunityPolicyRepository: CommunityPolicyRepositoryURL,
+}
 
 // The default platform is normalized to the canonical OS/arch labels so it
 // matches the values parsed from the release asset filenames.
@@ -32,8 +34,15 @@ var defaultGetOptions = GetOptions{
 }
 
 type Options struct {
+	// PolicyRepository overrides the repository policies are read from.
 	PolicyRepository string
-	Listener         ProgressListener
+
+	// CommunityPolicyRepository is consulted when a project publishes no
+	// policies of its own (and no PolicyRepository override is set). Empty
+	// disables the fallback.
+	CommunityPolicyRepository string
+
+	Listener ProgressListener
 
 	// Attest enables writing an attestation of every verification
 	// performed, in the AttestFormat format.
@@ -178,6 +187,16 @@ func WithPolicyRepository(repoURL string) FuncOption {
 			return err
 		}
 		d.Options.PolicyRepository = str
+		return nil
+	}
+}
+
+// WithCommunityPolicyRepository sets the repository of community policies
+// consulted when a project has none of its own. An empty URL disables the
+// fallback.
+func WithCommunityPolicyRepository(repoURL string) FuncOption {
+	return func(d *Dropper) error {
+		d.Options.CommunityPolicyRepository = repoURL
 		return nil
 	}
 }

@@ -95,3 +95,49 @@ func TestFetchPoliciesMissingRepo(t *testing.T) {
 	require.NoError(t, err, "a missing policy repository means no policies")
 	require.Empty(t, sets)
 }
+
+func TestFetchPoliciesCommunityFallback(t *testing.T) {
+	t.Parallel()
+	asset := &github.Asset{Host: github.DefaultHost, Org: testOrg, Repo: testAppName}
+	communityDir := CommunityPolicyPath(testOrg, testAppName)
+
+	for _, tc := range []struct {
+		name      string
+		orgDirs   []string // policy directories in the org's repo
+		override  bool     // set the org repo through PolicyRepository
+		community bool     // give the community repo policies for the project
+		expect    []string
+	}{
+		{"fallback-when-org-has-none", nil, false, true, []string{communityDir}},
+		{"org-policies-win", []string{OrgPolicyPath()}, false, true, []string{OrgPolicyPath()}},
+		{"no-fallback-for-explicit-source", nil, true, true, []string{}},
+		{"community-has-nothing-for-project", nil, false, false, []string{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			communityDirs := []string{CommunityPolicyPath("other", "project")}
+			if tc.community {
+				communityDirs = append(communityDirs, communityDir)
+			}
+			orgRepo := "file://" + newPolicyRepo(t, tc.orgDirs...)
+			di := &defaultImplementation{
+				policyRepository: func(_, _ string) string { return orgRepo },
+			}
+			opts := &Options{
+				Listener:                  &NoopListener{},
+				CommunityPolicyRepository: "file://" + newPolicyRepo(t, communityDirs...),
+			}
+			if tc.override {
+				opts.PolicyRepository = orgRepo
+			}
+
+			sets, err := di.FetchPolicies(opts, asset)
+			require.NoError(t, err)
+			ids := []string{}
+			for _, set := range sets {
+				ids = append(ids, set.GetId())
+			}
+			require.Equal(t, tc.expect, ids)
+		})
+	}
+}

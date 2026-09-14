@@ -114,10 +114,13 @@ By default, %s looks for attestations published along the artifacts and
 security policies in the .github repository of the GitHub organization where
 the files are hosted, under ampel/policies/release/<repo>/. Policies under
 ampel/policies/release/_/ apply to the releases of every repository in the
-organization and are read as well. You can specify an alternative policy
-repository with --policy-repo, either another GitHub repository or the path
-of a local git checkout (its committed contents are read); the same layout
-is expected inside it:
+organization and are read as well. Projects without policies of their own
+are checked against the community maintained ones in
+https://github.com/policylabs/oss (under policies/<org>/<repo>/release/).
+You can specify an alternative policy repository with --policy-repo, either
+another GitHub repository or the path of a local git checkout (its committed
+contents are read); the same layout as the .github repository is expected
+inside it and the community repository is not consulted:
 
   drop get --policy-repo=./my-policies github.com/org/repo
 

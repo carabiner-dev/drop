@@ -104,13 +104,14 @@ a browser.
 
 			info := version.GetVersionInfo()
 			request := &drop.PolicyRequest{
-				Host:             repo.Host,
-				Org:              repo.Org,
-				Repo:             repo.Repo,
-				PolicyRepository: opts.PolicyRepo,
-				Release:          release.GetVersion(),
-				Version:          info.GitVersion,
-				Platform:         info.Platform,
+				CommunityRepository: drop.CommunityPolicyRepositoryURL,
+				Host:                repo.Host,
+				Org:                 repo.Org,
+				Repo:                repo.Repo,
+				PolicyRepository:    opts.PolicyRepo,
+				Release:             release.GetVersion(),
+				Version:             info.GitVersion,
+				Platform:            info.Platform,
 			}
 			link := request.URL()
 

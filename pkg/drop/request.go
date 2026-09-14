@@ -48,6 +48,12 @@ func PolicyPathsLabel(repo string) string {
 	return fmt.Sprintf("%s/{%s,%s}/", policyPathPrefix, orgPolicyDir, repo)
 }
 
+// CommunityPolicyPath returns the directory inside the community policy
+// repository holding the release policies of a repository.
+func CommunityPolicyPath(org, repo string) string {
+	return fmt.Sprintf("policies/%s/%s/release", org, repo)
+}
+
 // PolicyRequest describes a request for the drop project to write community
 // policies for an open source repository that has none.
 type PolicyRequest struct {
@@ -58,6 +64,10 @@ type PolicyRequest struct {
 
 	// PolicyRepository is the URL where drop looked for policies
 	PolicyRepository string
+
+	// CommunityRepository is the URL of the community policy repository
+	// that was checked as well, empty when none was.
+	CommunityRepository string
 
 	// Release is the tag of the release drop checked for policies
 	Release string
@@ -100,11 +110,17 @@ func (pr *PolicyRequest) Body() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "## Community policies request\n\n")
 	fmt.Fprintf(&b, "Please consider writing community policies for **%s** (%s).\n\n", pr.Slug(), pr.RepositoryURL())
-	fmt.Fprintf(&b, "`drop` looked for policies in %s (under `%s`) and found none, ", policyRepo, PolicyPathsLabel(pr.Repo))
-	fmt.Fprintf(&b, "so the artifacts this project releases cannot be verified before installing them.\n\n")
+	fmt.Fprintf(&b, "`drop` looked for policies in %s (under `%s`)", policyRepo, PolicyPathsLabel(pr.Repo))
+	if pr.CommunityRepository != "" {
+		fmt.Fprintf(&b, " and in the community repository %s (under `%s/`)", pr.CommunityRepository, CommunityPolicyPath(pr.Org, pr.Repo))
+	}
+	fmt.Fprintf(&b, " and found none, so the artifacts this project releases cannot be verified before installing them.\n\n")
 	fmt.Fprintf(&b, "### Details\n\n")
 	fmt.Fprintf(&b, "- Repository: %s\n", pr.RepositoryURL())
 	fmt.Fprintf(&b, "- Policy source checked: %s (`%s`)\n", policyRepo, PolicyPathsLabel(pr.Repo))
+	if pr.CommunityRepository != "" {
+		fmt.Fprintf(&b, "- Community policies checked: %s (`%s/`)\n", pr.CommunityRepository, CommunityPolicyPath(pr.Org, pr.Repo))
+	}
 	if pr.Release != "" {
 		fmt.Fprintf(&b, "- Release checked: [%s](%s)\n", pr.Release, pr.ReleaseURL())
 	}

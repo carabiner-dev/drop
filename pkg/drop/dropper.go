@@ -23,6 +23,10 @@ const (
 	orgPolicyDir      = "_"
 )
 
+// CommunityPolicyRepositoryURL is the repository of community maintained
+// policies, consulted when a project publishes none of its own.
+const CommunityPolicyRepositoryURL = "https://github.com/policylabs/oss"
+
 var (
 	ErrNoPolicyAvailable  = errors.New("no verification policies available for artifact")
 	ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
