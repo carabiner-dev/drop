@@ -16,6 +16,12 @@ import (
 const (
 	appname = "drop"
 	arr     = `↘`
+
+	// noPolicyHint explains how to proceed when a publisher ships no
+	// verification policies for an artifact.
+	noPolicyHint = "the publisher has no policies for this artifact; " +
+		"point --policy-repo to a repository that defines them, " +
+		"or skip verification with --insecure"
 )
 
 var (

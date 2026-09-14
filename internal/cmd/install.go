@@ -256,6 +256,8 @@ writes the bare statement.
 					return fmt.Errorf("%w (try downloading with \"drop get\")", err)
 				case errors.Is(err, drop.ErrNoMatchingArchiveEntry):
 					return fmt.Errorf("%w (pick one with --entry or run interactively)", err)
+				case errors.Is(err, drop.ErrNoPolicyAvailable):
+					return fmt.Errorf("%w (%s)", err, noPolicyHint)
 				}
 				return fmt.Errorf("error installing: %w", err)
 			}

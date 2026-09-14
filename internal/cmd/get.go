@@ -245,6 +245,9 @@ of %s policies to secure their releases ✨
 				drop.WithDownloadType(opts.DownloadType),
 				drop.WithAttestationPath(opts.Out),
 			); err != nil {
+				if errors.Is(err, drop.ErrNoPolicyAvailable) {
+					return fmt.Errorf("%w (%s)", err, noPolicyHint)
+				}
 				return fmt.Errorf("error downloading: %w", err)
 			}
 			return nil
