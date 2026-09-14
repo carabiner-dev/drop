@@ -50,7 +50,7 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 			if s := event.GetDataField("repo"); s != "" {
 				repo = fmt.Sprintf(" (source: %s", s)
 				if p := event.GetDataField("path"); p != "" {
-					repo += " " + p + "/"
+					repo += " " + p
 				}
 				repo += ")"
 			}

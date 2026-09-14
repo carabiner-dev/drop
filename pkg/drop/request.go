@@ -30,6 +30,24 @@ func PolicyPath(repo string) string {
 	return policyPathPrefix + "/" + repo
 }
 
+// OrgPolicyPath returns the directory inside a policy repository holding the
+// policies that apply to the releases of every repository in the organization.
+func OrgPolicyPath() string {
+	return policyPathPrefix + "/" + orgPolicyDir
+}
+
+// PolicyPaths returns the directories read for a repository's policies, the
+// organization-wide one first.
+func PolicyPaths(repo string) []string {
+	return []string{OrgPolicyPath(), PolicyPath(repo)}
+}
+
+// PolicyPathsLabel renders the policy directories of a repository compactly
+// for messages: ampel/policies/release/{_,repo}/
+func PolicyPathsLabel(repo string) string {
+	return fmt.Sprintf("%s/{%s,%s}/", policyPathPrefix, orgPolicyDir, repo)
+}
+
 // PolicyRequest describes a request for the drop project to write community
 // policies for an open source repository that has none.
 type PolicyRequest struct {
@@ -82,11 +100,11 @@ func (pr *PolicyRequest) Body() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "## Community policies request\n\n")
 	fmt.Fprintf(&b, "Please consider writing community policies for **%s** (%s).\n\n", pr.Slug(), pr.RepositoryURL())
-	fmt.Fprintf(&b, "`drop` looked for policies in %s (under `%s/`) and found none, ", policyRepo, PolicyPath(pr.Repo))
+	fmt.Fprintf(&b, "`drop` looked for policies in %s (under `%s`) and found none, ", policyRepo, PolicyPathsLabel(pr.Repo))
 	fmt.Fprintf(&b, "so the artifacts this project releases cannot be verified before installing them.\n\n")
 	fmt.Fprintf(&b, "### Details\n\n")
 	fmt.Fprintf(&b, "- Repository: %s\n", pr.RepositoryURL())
-	fmt.Fprintf(&b, "- Policy source checked: %s (`%s/`)\n", policyRepo, PolicyPath(pr.Repo))
+	fmt.Fprintf(&b, "- Policy source checked: %s (`%s`)\n", policyRepo, PolicyPathsLabel(pr.Repo))
 	if pr.Release != "" {
 		fmt.Fprintf(&b, "- Release checked: [%s](%s)\n", pr.Release, pr.ReleaseURL())
 	}

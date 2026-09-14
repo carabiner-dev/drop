@@ -48,6 +48,7 @@ func (f *fakeRunner) LookPath(file string) (string, error) {
 
 const (
 	testOptBin  = "/opt/bin"
+	testOrg     = "carabiner-dev"
 	testAppName = "drop"
 	testBinFile = "drop-linux-amd64"
 	testTgzFile = "drop-linux-amd64.tar.gz"
@@ -593,7 +594,7 @@ func TestRecordInstall(t *testing.T) {
 
 	asset := &github.Asset{
 		Host:    "github.com",
-		Org:     "carabiner-dev",
+		Org:     testOrg,
 		Repo:    testAppName,
 		Version: "v0.1.0",
 		Name:    testBinFile,

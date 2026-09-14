@@ -15,10 +15,12 @@ import (
 )
 
 // Policies live in the organization's .github repository, under
-// ampel/policies/release/<repo>/
+// ampel/policies/release/<repo>/ for a repository and under
+// ampel/policies/release/_/ for those applying to every release in the org.
 const (
 	defaultPolicyRepo = ".github"
 	policyPathPrefix  = "ampel/policies/release"
+	orgPolicyDir      = "_"
 )
 
 var (

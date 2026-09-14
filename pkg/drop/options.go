@@ -158,7 +158,8 @@ func localPolicyRepository(spec string) (locator string, local bool, err error) 
 // the .github repository of the artifact's organization: a GitHub repository
 // (URL or org/repo slug) or a local git checkout given as a file:// URL or
 // a directory path (the committed contents are read, not the working tree).
-// Policies are read from ampel/policies/release/<repo>/ in either case.
+// Policies are read from ampel/policies/release/<repo>/ and the org-wide
+// ampel/policies/release/_/ in either case.
 func WithPolicyRepository(repoURL string) FuncOption {
 	return func(d *Dropper) error {
 		if repoURL == "" {

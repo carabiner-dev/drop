@@ -39,7 +39,7 @@ func noPolicyMessage(subcommand string, asset *github.Asset, policyRepo string) 
 
   %s verifies every artifact against its publisher's policies before
   installing it, and this project has none yet. Looked in:
-    %s (%s/)
+    %s (%s)
   You have three options:
 
     1. Ask the drop project to write community policies for it:
@@ -51,7 +51,7 @@ func noPolicyMessage(subcommand string, asset *github.Asset, policyRepo string) 
     3. Skip verification (not recommended):
          %s %s %s %s
 `,
-		w(fmt.Sprintf("No verification policies found for %s", slug)), appname, policyRepo, drop.PolicyPath(asset.Repo),
+		w(fmt.Sprintf("No verification policies found for %s", slug)), appname, policyRepo, drop.PolicyPathsLabel(asset.Repo),
 		appname, slug,
 		appname, subcommand, flagPolicyRepo, slug,
 		appname, subcommand, flagInsecure, slug,

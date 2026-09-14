@@ -28,7 +28,7 @@ func TestPolicyRequest(t *testing.T) {
 
 	body := req.Body()
 	require.Contains(t, body, "https://github.com/goreleaser/.github", "the default policy source is named")
-	require.Contains(t, body, "`ampel/policies/release/goreleaser/`", "the policy path is named")
+	require.Contains(t, body, "`ampel/policies/release/{_,goreleaser}/`", "the policy paths are named")
 	require.Contains(t, body, "linux/amd64")
 	require.Contains(t, body, "[v2.18.1](https://github.com/goreleaser/goreleaser/releases/tag/v2.18.1)")
 	require.Contains(t, body, "v1.2.3")
@@ -58,4 +58,7 @@ func TestDefaultPolicyRepository(t *testing.T) {
 func TestPolicyPath(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, "ampel/policies/release/goreleaser", PolicyPath("goreleaser"))
+	require.Equal(t, "ampel/policies/release/_", OrgPolicyPath())
+	require.Equal(t, []string{"ampel/policies/release/_", "ampel/policies/release/goreleaser"}, PolicyPaths("goreleaser"))
+	require.Equal(t, "ampel/policies/release/{_,goreleaser}/", PolicyPathsLabel("goreleaser"))
 }

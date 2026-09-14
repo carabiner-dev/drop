@@ -5,6 +5,7 @@ package drop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,12 +17,14 @@ import (
 	"github.com/carabiner-dev/ampel/pkg/verifier"
 	"github.com/carabiner-dev/attestation"
 	"github.com/carabiner-dev/collector"
+	fscollector "github.com/carabiner-dev/collector/repository/filesystem"
 	gitcollector "github.com/carabiner-dev/collector/repository/git"
 	"github.com/carabiner-dev/collector/repository/release"
 	"github.com/carabiner-dev/hasher"
 	"github.com/carabiner-dev/policy"
 	papi "github.com/carabiner-dev/policy/api/v1"
 	"github.com/carabiner-dev/predicates"
+	"github.com/go-git/go-billy/v5/helper/iofs"
 	intoto "github.com/in-toto/attestation/go/v1"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -221,61 +224,106 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		repoBaseUrl = opts.PolicyRepository
 	}
 
-	policyPath := PolicyPath(asset.GetRepo())
+	// Policies are read from two directories of the policy repository:
+	// the organization-wide one, applying to every release, and the
+	// repository's own. Both are read from a single clone.
+	paths := PolicyPaths(asset.GetRepo())
 	opts.Listener.HandleEvent(
 		&Event{
 			Object: EventObjectPolicy, Verb: EventVerbGet,
-			Data: map[string]string{"repo": repoBaseUrl, dataKeyPath: policyPath},
+			Data: map[string]string{"repo": repoBaseUrl, dataKeyPath: PolicyPathsLabel(asset.GetRepo())},
 		},
 	)
 
-	locator := fmt.Sprintf("%s#%s", repoBaseUrl, policyPath)
-
-	logrus.Debugf("Fetching policies from %s", locator)
-
 	// Create the git repository for the collector agent
 	arepo, err := gitcollector.New(
-		gitcollector.WithLocator(locator),
+		gitcollector.WithLocator(fmt.Sprintf("%s#%s", repoBaseUrl, paths[0])),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating git collector: %w", err)
 	}
-	// Create the attestation fetcher
-	agent, err := collector.New(
-		collector.WithRepository(arepo),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating collector agent: %w", err)
+
+	ret := []*papi.PolicySet{}
+	for i, dir := range paths {
+		if i > 0 {
+			if err := setCollectorPath(arepo, dir); err != nil {
+				return nil, err
+			}
+		}
+		logrus.Debugf("Fetching policies from %s#%s", repoBaseUrl, dir)
+
+		// Create the attestation fetcher. Agents cache what they fetch
+		// by predicate type, so each directory gets its own agent over
+		// the shared clone.
+		agent, err := collector.New(
+			collector.WithRepository(arepo),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("creating collector agent: %w", err)
+		}
+
+		// Fetch all policy set attestations, published under the current
+		// predicate type or the legacy one.
+		attestations, err := agent.FetchAttestationsByPredicateType(
+			context.Background(), []attestation.PredicateType{
+				predicates.PredicateTypePolicySet, predicates.PredicateTypePolicySet0,
+			},
+		)
+		// If there were errors fetching attestations, there are two special
+		// cases we want to handle as non-errors:
+		if err != nil {
+			// 1. The org has no policy repository (this error also returns
+			// if the repository requires auth). Nothing else to read.
+			if strings.Contains(strings.ToLower(err.Error()), "repository not found") {
+				logrus.Debugf("policy repository does not exist")
+				return []*papi.PolicySet{}, nil
+			}
+
+			// 2. The policy repo exists, but this directory does not.
+			if strings.Contains(err.Error(), "file does not exist") {
+				logrus.Debugf("policy repository has no policies in %s", dir)
+				continue
+			}
+
+			// Otherwise it is a true error
+			return nil, fmt.Errorf("fetching policies from %s: %w", dir, err)
+		}
+		ret = append(ret, parsePolicySets(attestations)...)
 	}
 
-	// Now, fetch all policy set attestations, published under the current
-	// predicate type or the legacy one.
-	attestations, err := agent.FetchAttestationsByPredicateType(
-		context.Background(), []attestation.PredicateType{
-			predicates.PredicateTypePolicySet, predicates.PredicateTypePolicySet0,
+	opts.Listener.HandleEvent(
+		&Event{
+			Object: EventObjectPolicy, Verb: EventVerbDone,
+			Data: map[string]string{"count": fmt.Sprintf("%d", len(ret))},
 		},
 	)
-	// If there were errors fetching attestations, there are two special
-	// cases we want to handle as non-errors:
-	if err != nil {
-		// 1. The org has no ampel repository.
-		// This error also returns if the requires auth
-		if strings.Contains(err.Error(), "Repository not found") {
-			logrus.Debugf("policy repository does not exist")
-			return []*papi.PolicySet{}, nil
-		}
+	return ret, nil
+}
 
-		// 2. The policy repo exists, but the specified path does not exist.
-		if strings.Contains(err.Error(), "file does not exist") {
-			logrus.Debug("policy repository has no policies for repo")
-			return []*papi.PolicySet{}, nil
-		}
-
-		// Otherwise it is a true error
-		return nil, fmt.Errorf("fetching policies: %w", err)
+// setCollectorPath points an already cloned git collector at another
+// directory of the same checkout, so several policy directories are read
+// from a single clone.
+func setCollectorPath(c *gitcollector.Collector, dir string) error {
+	if c.Repo == nil {
+		return errors.New("policy repository is not cloned")
 	}
+	wt, err := c.Repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("reading policy repository worktree: %w", err)
+	}
+	fsc, err := fscollector.New(
+		fscollector.WithFS(iofs.New(wt.Filesystem)),
+		fscollector.WithPath(dir),
+	)
+	if err != nil {
+		return fmt.Errorf("creating filesystem collector: %w", err)
+	}
+	c.FSCollector = fsc
+	return nil
+}
 
-	// Parse the policies from the attested data
+// parsePolicySets parses the policy sets carried by policy attestations.
+func parsePolicySets(attestations []attestation.Envelope) []*papi.PolicySet {
 	ret := []*papi.PolicySet{}
 	parser := policy.NewParser()
 	for _, att := range attestations {
@@ -296,15 +344,7 @@ func (di *defaultImplementation) FetchPolicies(opts *Options, asset github.Asset
 		}
 		ret = append(ret, pset)
 	}
-
-	opts.Listener.HandleEvent(
-		&Event{
-			Object: EventObjectPolicy, Verb: EventVerbDone,
-			Data: map[string]string{"count": fmt.Sprintf("%d", len(ret))},
-		},
-	)
-
-	return ret, nil
+	return ret
 }
 
 // DownloadAssetToTmp fetches the asset to a temporary directory, keeping its
