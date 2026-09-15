@@ -119,11 +119,18 @@ Example run: `ls -l sigstore/cosign`:
 
 ```text
 total 4
-💾🐧🍏🪟📦➖➖➖  sigstore-bot  sigstore  52763563  Aug    6    19: 6  cosign
-📄➖➖➖➖➖➖➖  sigstore-bot  sigstore  3906      Aug    6    19: 6  cosign_checksums.txt
-📄➖➖➖➖➖➖➖  sigstore-bot  sigstore  6406      Aug    6    19: 6  cosign_checksums.txt.sigstore.json
-📄➖➖➖➖➖➖➖  sigstore-bot  sigstore  178       Aug    6    19: 6  release-cosign.pub
+💾🐧🍏🪟📦➖➖➖  sigstore-bot  sigstore  52763563  Aug    6    19:06  cosign
+📄➖➖➖➖➖➖➖  sigstore-bot  sigstore  3906      Aug    6    19:06  cosign_checksums.txt
+📄➖➖➖➖➖➖➖  sigstore-bot  sigstore  6406      Aug    6    19:06  cosign_checksums.txt.sigstore.json
+📄➖➖➖➖➖➖➖  sigstore-bot  sigstore  178       Aug    6    19:06  release-cosign.pub
 ```
+
+You can see from the legend in the first line that `cosign` is offered:
+
+- For Linux (🐧), Mac(🍏), and Windows (🪟)
+- And as a binary (💾) and some sort of installable package (📦)
+
+The ourput also shows when it was released and by who.
 
 ## Verification
 
@@ -131,32 +138,37 @@ Every artifact is verified before it is installed or written to disk. drop
 reads the policies a project's organization publishes in its `.github`
 repository, under `ampel/policies/release/<repo>/` for the repository and
 `ampel/policies/release/_/` for policies that apply to every release in the
-organization. Projects without policies of their own fall back to the
-community policies in [policylabs/oss](https://github.com/policylabs/oss).
+organization.
 
-Policies are written in [HJSON](https://hjson.github.io/) or JSON, can
+Projects without policies of their own fall back to the community policies in
+[policylabs/oss](https://github.com/policylabs/oss) (under construction).
+
+Policies are written in [HJSON](https://hjson.github.io/) or JSON, and can
 reference the shared library in
-[carabiner-dev/policies](https://github.com/carabiner-dev/policies), and can
-declare which releases they apply to, so a project whose security metadata
-changed over time holds each release to what it shipped. drop tells them the
-version being installed, the platform and the release coordinates. How that
-works, what drop injects, and how to test a policy before publishing it is in
-[docs/policies.md](docs/policies.md).
+[carabiner-dev/policies](https://github.com/carabiner-dev/policies).
+
+Policies can declare which releases they apply to, so a project whose security
+metadata changed over time holds each release to what it shipped. `drop` exposes
+the version being installed to the AMPEL verifier so policies can gate on versions.
+How that works, what drop injects, and how to test a policy before publishing it
+is in [docs/policies.md](docs/policies.md).
 
 When a project has no policies, drop stops and says so. You can then:
 
 ```bash
 drop request org/repo                        # open an issue asking for community policies
 drop install --policy-repo ./my-policies org/repo   # use your own policy source (a repo or a local checkout)
-drop install --insecure org/repo             # skip verification; you are on your own
+drop install --insecure org/repo             # skip verification, you are on your own
 ```
+
+### Attesting the Verification
 
 `--attest` writes an attestation of the verification next to the download, as
 the full AMPEL result set, a SLSA
 [Verification Summary](https://slsa.dev/spec/v1.1/verification_summary) or an
 in-toto Simple Verification Result, signed with sigstore by default.
 
-## Building
+## Building drop from Source
 
 ```bash
 go build ./...
