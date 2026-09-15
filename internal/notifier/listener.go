@@ -14,6 +14,9 @@ import (
 
 var w = color.New(color.FgHiWhite, color.BgBlack).SprintFunc()
 
+// bold renders verification outcomes
+var bold = color.New(color.Bold).SprintFunc()
+
 // flagTrue is the value of boolean event data fields when set
 const flagTrue = "true"
 
@@ -99,12 +102,29 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 			fmt.Printf("  🛡️  %s\n", w("Verifying artifact..."))
 		case drop.EventVerbSkipped:
 			fmt.Printf("  🚫  %s\n", w("Security verification skipped"))
+		case drop.EventVerbResult:
+			// One line per policy: the outcome in bold, then the message
+			// the policy produced.
+			message := event.GetDataField(drop.EventDataMessage)
+			if message != "" {
+				message = ": " + message
+			}
+			if event.GetDataField(drop.EventDataStatus) == "PASS" {
+				fmt.Printf("      ✅  %s%s\n", bold("PASS"), message)
+			} else {
+				fmt.Printf("      ❌  %s%s\n", bold("FAIL"), message)
+			}
 		case drop.EventVerbDone:
+			// The per-policy lines already told the story; the bare
+			// outcome is only shown when there were none.
+			if n := event.GetDataField(drop.EventDataResults); n != "" && n != "0" {
+				return
+			}
 			if s := event.GetDataField("passed"); s != "" {
 				if s == flagTrue {
-					fmt.Println("      ✅  PASS")
+					fmt.Printf("      ✅  %s\n", bold("PASS"))
 				} else {
-					fmt.Println("      ❌  FAIL")
+					fmt.Printf("      ❌  %s\n", bold("FAIL"))
 				}
 			} else {
 				fmt.Println("      ✔️  done")

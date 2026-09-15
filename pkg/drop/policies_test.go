@@ -5,6 +5,8 @@ package drop
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +19,8 @@ import (
 
 	"github.com/carabiner-dev/drop/pkg/github"
 )
+
+const testAuthor = "test"
 
 // policySetAttestation returns a bare in-toto statement carrying a minimal,
 // always passing policy set with the given id.
@@ -60,7 +64,7 @@ func newPolicyRepo(t *testing.T, dirs ...string) string {
 		require.NoError(t, err)
 	}
 	_, err = wt.Commit("policies", &git.CommitOptions{
-		Author: &object.Signature{Name: "test", Email: "test@example.com", When: time.Now()},
+		Author: &object.Signature{Name: testAuthor, Email: testAuthor + "@example.com", When: time.Now()},
 	})
 	require.NoError(t, err)
 	return fileLocator(dir)
@@ -186,7 +190,7 @@ func TestFetchPoliciesHJSON(t *testing.T) {
 	_, err = wt.Add(policyDir)
 	require.NoError(t, err)
 	_, err = wt.Commit("policies", &git.CommitOptions{
-		Author: &object.Signature{Name: "test", Email: "test@example.com", When: time.Now()},
+		Author: &object.Signature{Name: testAuthor, Email: testAuthor + "@example.com", When: time.Now()},
 	})
 	require.NoError(t, err)
 
@@ -199,4 +203,76 @@ func TestFetchPoliciesHJSON(t *testing.T) {
 		ids = append(ids, set.GetId())
 	}
 	require.ElementsMatch(t, []string{"hjson-release", "attested"}, ids)
+}
+
+// referencedPolicy is a standalone policy served over HTTP for policy sets
+// that reference it instead of embedding it.
+const referencedPolicy = `{"id": "remote-pass", "meta": {"version": 1}, "tenets": [{"id": "t", "code": "true"}]}`
+
+// TestFetchPoliciesCompilesReferences checks that policy sets pointing at
+// policies elsewhere reach the caller with those policies resolved.
+func TestFetchPoliciesCompilesReferences(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/remote-pass.json" {
+			http.NotFound(w, r)
+			return
+		}
+		if _, err := w.Write([]byte(referencedPolicy)); err != nil {
+			t.Error(err)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	newRepo := func(t *testing.T, set string) string {
+		t.Helper()
+		dir := t.TempDir()
+		repo, err := git.PlainInit(dir, false)
+		require.NoError(t, err)
+		wt, err := repo.Worktree()
+		require.NoError(t, err)
+		policyDir := PolicyPath(testAppName)
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, policyDir), 0o750))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, policyDir, "release.hjson"), []byte(set), 0o600))
+		_, err = wt.Add(policyDir)
+		require.NoError(t, err)
+		_, err = wt.Commit("policies", &git.CommitOptions{
+			Author: &object.Signature{Name: testAuthor, Email: testAuthor + "@example.com", When: time.Now()},
+		})
+		require.NoError(t, err)
+		return fileLocator(dir)
+	}
+	asset := &github.Asset{Host: github.DefaultHost, Org: testOrg, Repo: testAppName}
+
+	t.Run("resolved", func(t *testing.T) {
+		t.Parallel()
+		set := `{
+    id: referencing-set
+    meta: { version: 1 }
+    policies: [
+        { id: "remote-pass", source: { location: { uri: "` + srv.URL + `/remote-pass.json" } } }
+    ]
+}`
+		opts := &Options{Listener: &NoopListener{}, PolicyRepository: newRepo(t, set)}
+		sets, err := (&defaultImplementation{}).FetchPolicies(opts, asset)
+		require.NoError(t, err)
+		require.Len(t, sets, 1)
+		require.Len(t, sets[0].GetPolicies(), 1)
+		require.Len(t, sets[0].GetPolicies()[0].GetTenets(), 1, "the referenced policy's tenets must be resolved")
+		require.Equal(t, "true", sets[0].GetPolicies()[0].GetTenets()[0].GetCode())
+	})
+
+	t.Run("unresolvable-reference-fails", func(t *testing.T) {
+		t.Parallel()
+		set := `{
+    id: broken-set
+    meta: { version: 1 }
+    policies: [
+        { id: "missing", source: { location: { uri: "` + srv.URL + `/missing.json" } } }
+    ]
+}`
+		opts := &Options{Listener: &NoopListener{}, PolicyRepository: newRepo(t, set)}
+		_, err := (&defaultImplementation{}).FetchPolicies(opts, asset)
+		require.ErrorContains(t, err, "compiling policy set \"broken-set\"")
+	})
 }

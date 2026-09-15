@@ -390,7 +390,11 @@ func fetchPolicySets(repoBaseUrl string, dirs []string) ([]*papi.PolicySet, erro
 			// Otherwise it is a true error
 			return nil, fmt.Errorf("fetching policies from %s: %w", dir, err)
 		}
-		ret = append(ret, parsePolicySets(attestations)...)
+		sets, err := compilePolicySets(attestations)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, sets...)
 	}
 	return ret, nil
 }
@@ -417,10 +421,16 @@ func setCollectorPath(c *gitcollector.Collector, dir string) error {
 	return nil
 }
 
-// parsePolicySets parses the policy sets carried by policy attestations.
-func parsePolicySets(attestations []attestation.Envelope) []*papi.PolicySet {
+// compilePolicySets parses the policy sets carried by policy attestations and
+// compiles them, resolving the policies they reference from other locations
+// (such as the community policies repository) so they reach the verifier with
+// their tenets in place. A reference that cannot be resolved is an error:
+// silently dropping it would verify against fewer policies than the
+// publisher intended.
+func compilePolicySets(attestations []attestation.Envelope) ([]*papi.PolicySet, error) {
 	ret := []*papi.PolicySet{}
 	parser := policy.NewParser()
+	compiler := policy.NewCompiler()
 	for _, att := range attestations {
 		// Since these attestations were already parsed, these two
 		// should never happen, but we still want to avoid panics:
@@ -437,9 +447,13 @@ func parsePolicySets(attestations []attestation.Envelope) []*papi.PolicySet {
 			logrus.Errorf("parsing policy set: %v", err)
 			continue
 		}
-		ret = append(ret, pset)
+		compiled, err := compiler.CompileSet(pset)
+		if err != nil {
+			return nil, fmt.Errorf("compiling policy set %q: %w", pset.GetId(), err)
+		}
+		ret = append(ret, compiled)
 	}
-	return ret
+	return ret, nil
 }
 
 // DownloadAssetToTmp fetches the asset to a temporary directory, keeping its
@@ -531,6 +545,26 @@ func finalizeResultSet(
 	}
 }
 
+// policyResultMessage returns the human message explaining a policy's result:
+// the assessment of a passing tenet when the policy passed, the error of a
+// failing tenet when it did not, falling back to the policy description or id
+// when the tenets carry no message.
+func policyResultMessage(r *papi.Result) string {
+	passed := r.GetStatus() == papi.StatusPASS
+	for _, eval := range r.GetEvalResults() {
+		switch {
+		case passed && eval.GetStatus() == papi.StatusPASS && eval.GetAssessment().GetMessage() != "":
+			return eval.GetAssessment().GetMessage()
+		case !passed && eval.GetStatus() != papi.StatusPASS && eval.GetError().GetMessage() != "":
+			return eval.GetError().GetMessage()
+		}
+	}
+	if desc := r.GetMeta().GetDescription(); desc != "" {
+		return desc
+	}
+	return r.GetPolicy().GetId()
+}
+
 func (di *defaultImplementation) VerifyAsset(
 	opts *Options, policies []*papi.PolicySet, asset github.AssetDataProvider, filePath string,
 ) (bool, *papi.ResultSet, error) {
@@ -562,28 +596,44 @@ func (di *defaultImplementation) VerifyAsset(
 		return false, nil, err
 	}
 
-	// Run the artifact verification
+	// Run the artifact verification, one policy set at a time. Verifying a
+	// set (rather than its policies) is what applies the set's common
+	// context values and signer identities to every policy in it. The
+	// artifact passes when every set passes.
 	start := timestamppb.Now()
-	results, err := vrfr.Verify(
-		context.Background(), &verifier.DefaultVerificationOptions, policies, subject,
-	)
-	if err != nil {
-		return false, nil, fmt.Errorf("error running artifact verification: %w", err)
-	}
-
-	resultSet, ok := results.(*papi.ResultSet)
-	if !ok {
-		return false, nil, fmt.Errorf("unexpected results type %T returned from verifier", results)
-	}
-
-	// Compute the evaluation status
+	resultSet := &papi.ResultSet{}
 	passed := true
-	for _, r := range resultSet.GetResults() {
-		if r.GetStatus() != papi.StatusPASS {
+	for _, set := range policies {
+		rs, err := vrfr.VerifySubjectWithPolicySet(
+			context.Background(), &verifier.DefaultVerificationOptions, set, subject,
+		)
+		if err != nil {
+			return false, nil, fmt.Errorf("error running artifact verification (policy set %q): %w", set.GetId(), err)
+		}
+		if rs.GetStatus() != papi.StatusPASS {
 			passed = false
 		}
+		if len(policies) == 1 {
+			resultSet = rs
+			break
+		}
+		resultSet.Results = append(resultSet.Results, rs.GetResults()...)
 	}
 	finalizeResultSet(resultSet, subject, policies, start, passed)
+
+	// Report every policy's outcome with the message its tenets produced
+	for _, r := range resultSet.GetResults() {
+		opts.Listener.HandleEvent(
+			&Event{
+				Object: EventObjectVerification, Verb: EventVerbResult,
+				Data: map[string]string{
+					EventDataPolicy:  r.GetPolicy().GetId(),
+					EventDataStatus:  r.GetStatus(),
+					EventDataMessage: policyResultMessage(r),
+				},
+			},
+		)
+	}
 
 	p := "true"
 	if !passed {
@@ -593,7 +643,10 @@ func (di *defaultImplementation) VerifyAsset(
 	opts.Listener.HandleEvent(
 		&Event{
 			Object: EventObjectVerification, Verb: EventVerbDone,
-			Data: map[string]string{"passed": p},
+			Data: map[string]string{
+				"passed":         p,
+				EventDataResults: strconv.Itoa(len(resultSet.GetResults())),
+			},
 		},
 	)
 

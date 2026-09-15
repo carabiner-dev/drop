@@ -14,9 +14,16 @@ const (
 
 	EventVerbDone    = "done"
 	EventVerbGet     = "get"
+	EventVerbResult  = "result"
 	EventVerbRunning = "running"
 	EventVerbSaved   = "saved"
 	EventVerbSkipped = "skipped"
+
+	// Data fields of verification result events (one per policy)
+	EventDataPolicy  = "policy"
+	EventDataStatus  = "status"
+	EventDataMessage = "message"
+	EventDataResults = "results"
 
 	// EventDataCommunity flags policy events about the community repository
 	EventDataCommunity = "community"

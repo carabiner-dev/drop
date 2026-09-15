@@ -140,3 +140,44 @@ func TestFinalizeResultSet(t *testing.T) {
 		require.Same(t, endSet, rs.GetDateEnd())
 	})
 }
+
+func TestPolicyResultMessage(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		result *papi.Result
+		expect string
+	}{
+		{
+			name: "passing-tenet-assessment",
+			result: &papi.Result{Status: papi.StatusPASS, EvalResults: []*papi.EvalResult{
+				{Status: papi.StatusFAIL, Error: &papi.Error{Message: "v0.2 tenet did not apply"}},
+				{Status: papi.StatusPASS, Assessment: &papi.Assessment{Message: "Authorized builder ID detected"}},
+			}},
+			expect: "Authorized builder ID detected",
+		},
+		{
+			name: "failing-tenet-error",
+			result: &papi.Result{Status: papi.StatusFAIL, EvalResults: []*papi.EvalResult{
+				{Status: papi.StatusPASS, Assessment: &papi.Assessment{Message: "irrelevant"}},
+				{Status: papi.StatusFAIL, Error: &papi.Error{Message: "Builder identifier mismatch"}},
+			}},
+			expect: "Builder identifier mismatch",
+		},
+		{
+			name:   "falls-back-to-description",
+			result: &papi.Result{Status: papi.StatusPASS, Meta: &papi.Meta{Description: "Checks the builder"}},
+			expect: "Checks the builder",
+		},
+		{
+			name:   "falls-back-to-id",
+			result: &papi.Result{Status: papi.StatusFAIL, Policy: &papi.PolicyRef{Id: "slsa-builder-id"}},
+			expect: "slsa-builder-id",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.expect, policyResultMessage(tc.result))
+		})
+	}
+}
