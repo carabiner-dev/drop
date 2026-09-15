@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/carabiner-dev/drop/pkg/github"
+	"github.com/carabiner-dev/drop/pkg/system"
 )
 
 func TestAssetSubject(t *testing.T) {
@@ -180,4 +181,28 @@ func TestPolicyResultMessage(t *testing.T) {
 			require.Equal(t, tc.expect, policyResultMessage(tc.result))
 		})
 	}
+}
+
+func TestReleaseContext(t *testing.T) {
+	t.Parallel()
+	asset := &github.Asset{
+		Host: github.DefaultHost, Org: testOrg, Repo: testAppName, Version: "v1.2.3-rc.1",
+		Name: "drop-v1.2.3-rc.1-linux-amd64", Os: system.OSLinux, Arch: system.ArchAMD64,
+	}
+	values := releaseContext(asset)
+	require.Equal(t, github.DefaultHost, values[ContextHost])
+	require.Equal(t, testOrg, values[ContextOrg])
+	require.Equal(t, testAppName, values[ContextRepo])
+	require.Equal(t, "https://github.com/"+testOrg+"/"+testAppName, values[ContextRepository])
+	require.Equal(t, "v1.2.3-rc.1", values[ContextTag])
+	require.Equal(t, "1.2.3-rc.1", values[ContextVersion], "the version drops the leading v for semver")
+	require.Equal(t, "drop-v1.2.3-rc.1-linux-amd64", values[ContextAsset])
+	require.Equal(t, system.OSLinux, values[ContextOS])
+	require.Equal(t, system.ArchAMD64, values[ContextArch])
+
+	// Providers only answer for the keys they hold; other policy context
+	// values (builderId and friends) must not be shadowed.
+	v, err := values.GetContextValue("builderId")
+	require.NoError(t, err)
+	require.Nil(t, v)
 }

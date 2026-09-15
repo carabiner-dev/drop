@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	acontext "github.com/carabiner-dev/ampel/pkg/context"
 	"github.com/carabiner-dev/ampel/pkg/verifier"
 	"github.com/carabiner-dev/attestation"
 	"github.com/carabiner-dev/collector"
@@ -565,6 +566,40 @@ func policyResultMessage(r *papi.Result) string {
 	return r.GetPolicy().GetId()
 }
 
+// Context values drop exposes to policies about the artifact under
+// verification. Policies declare the ones they use in their context block.
+const (
+	ContextHost       = "drop_host"       // GitHub host, e.g. github.com
+	ContextOrg        = "drop_org"        // repository owner
+	ContextRepo       = "drop_repo"       // repository name
+	ContextRepository = "drop_repository" // repository URL
+	ContextTag        = "drop_tag"        // release tag as published, e.g. v1.2.3
+	ContextVersion    = "drop_version"    // release tag without the leading v, e.g. 1.2.3
+	ContextAsset      = "drop_asset"      // name of the release asset being verified
+	ContextOS         = "drop_os"         // operating system of the asset, when known
+	ContextArch       = "drop_arch"       // architecture of the asset, when known
+)
+
+// releaseContext returns the context provider exposing the artifact's
+// release coordinates to policies, so they can branch on the version being
+// installed (for example with the semver plugin) or on its platform.
+func releaseContext(asset github.AssetDataProvider) acontext.MapAnyProvider {
+	values := acontext.MapAnyProvider{
+		ContextHost:       asset.GetHost(),
+		ContextOrg:        asset.GetOrg(),
+		ContextRepo:       asset.GetRepo(),
+		ContextRepository: asset.GetRepoURL(),
+		ContextTag:        asset.GetVersion(),
+		ContextVersion:    strings.TrimPrefix(asset.GetVersion(), "v"),
+		ContextAsset:      asset.GetName(),
+	}
+	if a, ok := asset.(*github.Asset); ok {
+		values[ContextOS] = a.Os
+		values[ContextArch] = a.Arch
+	}
+	return values
+}
+
 func (di *defaultImplementation) VerifyAsset(
 	opts *Options, policies []*papi.PolicySet, asset github.AssetDataProvider, filePath string,
 ) (bool, *papi.ResultSet, error) {
@@ -603,9 +638,15 @@ func (di *defaultImplementation) VerifyAsset(
 	start := timestamppb.Now()
 	resultSet := &papi.ResultSet{}
 	passed := true
+
+	// Policies get the release coordinates as context values
+	vopts := verifier.NewVerificationOptions()
+	releaseValues := releaseContext(asset)
+	vopts.WithContextProvider(&releaseValues)
+
 	for _, set := range policies {
 		rs, err := vrfr.VerifySubjectWithPolicySet(
-			context.Background(), &verifier.DefaultVerificationOptions, set, subject,
+			context.Background(), &vopts, set, subject,
 		)
 		if err != nil {
 			return false, nil, fmt.Errorf("error running artifact verification (policy set %q): %w", set.GetId(), err)
