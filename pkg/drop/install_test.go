@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -1024,4 +1025,66 @@ func TestFindInstallable(t *testing.T) {
 			require.Equal(t, tc.expect, found.GetName())
 		})
 	}
+}
+
+// TestCopyFileReplacesRunningBinary checks that installing over an executable
+// that is running succeeds: drop updating itself must not fail with "text
+// file busy".
+func TestCopyFileReplacesRunningBinary(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("running executables are replaced through a rename on windows; covered by TestCopyFileReplacesExisting")
+	}
+	sleepBin, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("no sleep binary available")
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "app")
+	require.NoError(t, copyFile(sleepBin, target, 0o755))
+
+	// Run the installed binary so its text is busy
+	cmd := exec.CommandContext(t.Context(), target, "30") //nolint:gosec // the target is a file this test wrote
+	require.NoError(t, cmd.Start())
+	t.Cleanup(func() {
+		if err := cmd.Process.Kill(); err != nil {
+			t.Logf("killing test process: %v", err)
+		}
+		_, _ = cmd.Process.Wait() //nolint:errcheck // the process was killed
+	})
+
+	// Installing a new version over it must succeed
+	newer := filepath.Join(dir, "newer")
+	require.NoError(t, os.WriteFile(newer, []byte("#!/bin/sh\necho newer\n"), 0o755)) //nolint:gosec
+	require.NoError(t, copyFile(newer, target, 0o755))
+
+	data, err := os.ReadFile(target) //nolint:gosec // path built from t.TempDir
+	require.NoError(t, err)
+	require.Equal(t, "#!/bin/sh\necho newer\n", string(data))
+	leftovers, err := filepath.Glob(filepath.Join(dir, ".app.*"))
+	require.NoError(t, err)
+	require.Empty(t, leftovers, "no temporary files are left behind")
+}
+
+func TestCopyFileReplacesExisting(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src")
+	dst := filepath.Join(dir, "dst")
+	require.NoError(t, os.WriteFile(src, []byte("new"), 0o600))
+	require.NoError(t, os.WriteFile(dst, []byte("old"), 0o600))
+
+	require.NoError(t, copyFile(src, dst, 0o700))
+	data, err := os.ReadFile(dst) //nolint:gosec // path built from t.TempDir
+	require.NoError(t, err)
+	require.Equal(t, "new", string(data))
+	info, err := os.Stat(dst)
+	require.NoError(t, err)
+	if runtime.GOOS != "windows" {
+		require.Equal(t, os.FileMode(0o700), info.Mode().Perm(), "the requested mode is applied")
+	}
+	require.NoFileExists(t, dst+".old")
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, entries, 2, "only src and dst remain")
 }

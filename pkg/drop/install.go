@@ -430,6 +430,10 @@ func dirWritable(dir string) bool {
 }
 
 // copyFile copies src to dst setting the supplied mode.
+// copyFile installs src at dst with the given mode. The data is written to
+// a temporary file next to dst and moved into place, so an executable that
+// is running (drop updating itself, for one) is replaced instead of being
+// opened for writing, which the kernel refuses with "text file busy".
 func copyFile(src, dst string, mode os.FileMode) error {
 	in, err := os.Open(src) //nolint:gosec
 	if err != nil {
@@ -437,19 +441,48 @@ func copyFile(src, dst string, mode os.FileMode) error {
 	}
 	defer in.Close() //nolint:errcheck
 
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode) //nolint:gosec
+	out, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".*")
 	if err != nil {
 		return fmt.Errorf("creating target file: %w", err)
 	}
-
+	tmp := out.Name()
 	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close() //nolint:errcheck
+		_ = out.Close()    //nolint:errcheck
+		_ = os.Remove(tmp) //nolint:errcheck
 		return fmt.Errorf("copying file data: %w", err)
 	}
 	if err := out.Close(); err != nil {
+		_ = os.Remove(tmp) //nolint:errcheck
 		return fmt.Errorf("closing target file: %w", err)
 	}
-	return os.Chmod(dst, mode)
+	if err := os.Chmod(tmp, mode); err != nil {
+		_ = os.Remove(tmp) //nolint:errcheck
+		return fmt.Errorf("setting target mode: %w", err)
+	}
+	return replaceFile(tmp, dst)
+}
+
+// replaceFile moves tmp over dst. Renaming over a running executable works
+// on Unix. Windows locks running executables against replacement but lets
+// them be renamed, so there the current file is moved aside first and
+// removed afterwards (a leftover .old file is left when it is still in use).
+func replaceFile(tmp, dst string) error {
+	if err := os.Rename(tmp, dst); err == nil {
+		return nil
+	}
+	old := dst + ".old"
+	_ = os.Remove(old) //nolint:errcheck
+	if err := os.Rename(dst, old); err != nil {
+		_ = os.Remove(tmp) //nolint:errcheck
+		return fmt.Errorf("moving current file aside: %w", err)
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		_ = os.Rename(old, dst) //nolint:errcheck
+		_ = os.Remove(tmp)      //nolint:errcheck
+		return fmt.Errorf("moving new file into place: %w", err)
+	}
+	_ = os.Remove(old) //nolint:errcheck
+	return nil
 }
 
 // installableName returns the name of the app an artifact belongs to. It
