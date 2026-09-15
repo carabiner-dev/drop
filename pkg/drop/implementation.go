@@ -554,6 +554,9 @@ func policyResultMessage(r *papi.Result) string {
 	passed := r.GetStatus() == papi.StatusPASS
 	for _, eval := range r.GetEvalResults() {
 		switch {
+		case eval.GetStatus() == papi.StatusSKIP && eval.GetAssessment().GetMessage() != "":
+			// A skipped policy explains itself through its condition
+			return eval.GetAssessment().GetMessage()
 		case passed && eval.GetStatus() == papi.StatusPASS && eval.GetAssessment().GetMessage() != "":
 			return eval.GetAssessment().GetMessage()
 		case !passed && eval.GetStatus() != papi.StatusPASS && eval.GetError().GetMessage() != "":
@@ -637,7 +640,7 @@ func (di *defaultImplementation) VerifyAsset(
 	// artifact passes when every set passes.
 	start := timestamppb.Now()
 	resultSet := &papi.ResultSet{}
-	passed := true
+	statuses := make([]string, 0, len(policies))
 
 	// Policies get the release coordinates as context values
 	vopts := verifier.NewVerificationOptions()
@@ -651,15 +654,14 @@ func (di *defaultImplementation) VerifyAsset(
 		if err != nil {
 			return false, nil, fmt.Errorf("error running artifact verification (policy set %q): %w", set.GetId(), err)
 		}
-		if rs.GetStatus() != papi.StatusPASS {
-			passed = false
-		}
+		statuses = append(statuses, rs.GetStatus())
 		if len(policies) == 1 {
 			resultSet = rs
 			break
 		}
 		resultSet.Results = append(resultSet.Results, rs.GetResults()...)
 	}
+	passed, applied := verificationOutcome(statuses)
 	finalizeResultSet(resultSet, subject, policies, start, passed)
 
 	// Report every policy's outcome with the message its tenets produced
@@ -691,7 +693,32 @@ func (di *defaultImplementation) VerifyAsset(
 		},
 	)
 
+	// Policies that all skipped verified nothing: that is not a pass.
+	if !applied {
+		return false, resultSet, ErrNoPolicyApplies
+	}
 	return passed, resultSet, nil
+}
+
+// verificationOutcome derives the artifact's verdict from the status of the
+// policy sets evaluated against it. Any failing set fails the artifact.
+// Skipped sets (whose policies did not apply to this release) never count
+// against it, but when every set skipped nothing was verified, reported
+// through applied=false.
+func verificationOutcome(statuses []string) (passed, applied bool) {
+	skipped := 0
+	for _, status := range statuses {
+		switch status {
+		case papi.StatusFAIL:
+			return false, true
+		case papi.StatusSKIP:
+			skipped++
+		}
+	}
+	if len(statuses) > 0 && skipped == len(statuses) {
+		return false, false
+	}
+	return true, true
 }
 
 // DownloadAssetToWriter downloads the asset data to the supplied writer

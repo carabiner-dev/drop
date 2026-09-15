@@ -251,6 +251,12 @@ of %s policies to secure their releases ✨
 				drop.WithDownloadType(opts.DownloadType),
 				drop.WithAttestationPath(opts.Out),
 			); err != nil {
+				if errors.Is(err, drop.ErrNoPolicyApplies) {
+					if !opts.Quiet {
+						fmt.Println(noPolicyAppliesMessage("get", asset))
+					}
+					return fmt.Errorf("%w (set %s or use %s)", err, flagPolicyRepo, flagInsecure)
+				}
 				if errors.Is(err, drop.ErrNoPolicyAvailable) {
 					if !opts.Quiet {
 						fmt.Println(noPolicyMessage("get", asset, opts.PolicyRepo))

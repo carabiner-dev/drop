@@ -70,46 +70,71 @@ about what was built still comes from the attestations the policy admits.
 
 ## Branching on the version
 
-AMPEL's CEL runtime ships a `semver` plugin, so tenets can compare the version
-being installed against ranges and prerelease labels. This is how a policy
-copes with a project whose security metadata changed between releases: old
-releases are held to what they shipped, new ones to the current bar, and the
-policy stays a single file.
+A policy declares the releases it applies to with a `when` condition, an
+expression evaluated against the context values before any evidence is
+fetched. When it is false the policy is **skipped**: drop prints it as
+`⏭️ SKIP` with the condition, and it does not count against the artifact.
+AMPEL's CEL runtime ships a `semver` plugin, so conditions can compare the
+version being installed against ranges and prerelease labels. This is how a
+policy copes with a project whose security metadata changed between
+releases: old releases are held to what they shipped, new ones to the
+current bar, and the policy set stays a single file.
 
 Require a newer attestation format from a version on, while still verifying
 older releases with what they carry:
 
 ```hjson
 {
-    id: provenance-generation
-    meta: {
-        description: "Releases from 2.0.0 ship SLSA v1 provenance, older ones may ship v0.2"
-        assert_mode: "OR"
-    }
+    id: current-provenance
+    when: { expression: "semver.satisfies(context.drop_version, '>=2.0.0')" }
     tenets: [
         {
-            id: current-releases
+            id: has-slsa-v1
             predicates: { types: ["https://slsa.dev/provenance/v1"] }
-            code: "semver.satisfies(context.drop_version, '>=2.0.0') && size(predicates) > 0"
+            code: "size(predicates) > 0"
         }
+    ]
+}
+{
+    id: legacy-provenance
+    when: { expression: "semver.satisfies(context.drop_version, '<2.0.0')" }
+    tenets: [
         {
-            id: legacy-releases
+            id: has-slsa
             predicates: { types: ["https://slsa.dev/provenance/v0.2", "https://slsa.dev/provenance/v1"] }
-            code: "semver.satisfies(context.drop_version, '<2.0.0') && size(predicates) > 0"
+            code: "size(predicates) > 0"
         }
     ]
 }
 ```
 
-With `assert_mode: OR` one passing tenet is enough. A tenet whose predicate
-types match nothing fails on missing evidence, so a 2.0.0 release with only
-v0.2 provenance fails both tenets and the policy.
+A condition can also gate a policy referenced from the shared library
+without editing it, since `when` on the referencing stanza is applied to the
+referenced policy:
+
+```hjson
+{
+    id: slsa-builder-id
+    source: { location: { uri: "git+https://github.com/carabiner-dev/policies@<commit>#slsa/slsa-builder-id.json" } }
+    when: { expression: "semver.satisfies(context.drop_version, '>=2.0.0')" }
+}
+```
 
 Treat prereleases differently from stable releases:
 
 ```hjson
-code: "semver.prerelease(context.drop_version) == '' && size(predicates) > 0"
+when: { expression: "semver.prerelease(context.drop_version) == ''" }
 ```
+
+Conditions see the context values in scope, the subject and the runtime
+plugins, but no attestations: applicability is a property of what is being
+installed, not of the evidence found for it. Every context value a condition
+reads must be declared, and the evaluation fails if it is not.
+
+When **every** policy skips, nothing was verified. drop does not treat that
+as a pass: the install stops with "No verification policy applies to
+<org>/<repo> <tag>", and the same `--policy-repo` and `--insecure` ways
+forward as when a project has no policies at all.
 
 Pin evidence to the exact release by reusing the tag in an identity or a
 context value with `fromContext`, for example when the release workflow signs
@@ -134,7 +159,9 @@ context: {
 
 The full list of helpers (`semver.satisfies`, `semver.compare`,
 `semver.isStable`, `semver.major`, ...) is in the AMPEL
-[CEL plugins reference](https://github.com/carabiner-dev/ampel/blob/main/docs/cel-plugins.md).
+[CEL plugins reference](https://github.com/carabiner-dev/ampel/blob/main/docs/cel-plugins.md),
+and conditions are described in the
+[policy guide](https://github.com/carabiner-dev/ampel/blob/main/docs/03-ampel-policy-guide.md).
 
 ## Testing a policy outside drop
 
@@ -155,7 +182,7 @@ local checkout of the policy repository (its committed contents are read):
 drop get --policy-repo ./dot-github carabiner-dev/drop@v0.0.1
 ```
 
-drop's own release policy, which branches on the version to accept the SLSA
-v0.2 provenance of early prereleases while requiring v1 from stable releases,
-lives in
+drop's own release policy, which gates two provenance policies on the
+version so early prereleases are verified with their SLSA v0.2 provenance
+while stable releases must ship v1, lives in
 [carabiner-dev/.github](https://github.com/carabiner-dev/.github/blob/main/ampel/policies/release/drop/drop-release.hjson).

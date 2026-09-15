@@ -166,6 +166,13 @@ func TestPolicyResultMessage(t *testing.T) {
 			expect: "Builder identifier mismatch",
 		},
 		{
+			name: "skipped-policy-condition",
+			result: &papi.Result{Status: papi.StatusSKIP, EvalResults: []*papi.EvalResult{
+				{Id: "when", Status: papi.StatusSKIP, Assessment: &papi.Assessment{Message: "Skipped: condition \"x\" is false"}},
+			}},
+			expect: "Skipped: condition \"x\" is false",
+		},
+		{
 			name:   "falls-back-to-description",
 			result: &papi.Result{Status: papi.StatusPASS, Meta: &papi.Meta{Description: "Checks the builder"}},
 			expect: "Checks the builder",
@@ -205,4 +212,30 @@ func TestReleaseContext(t *testing.T) {
 	v, err := values.GetContextValue("builderId")
 	require.NoError(t, err)
 	require.Nil(t, v)
+}
+
+func TestVerificationOutcome(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		statuses []string
+		passed   bool
+		applied  bool
+	}{
+		{"single-pass", []string{papi.StatusPASS}, true, true},
+		{"single-fail", []string{papi.StatusFAIL}, false, true},
+		{"single-skip-verified-nothing", []string{papi.StatusSKIP}, false, false},
+		{"skip-plus-pass", []string{papi.StatusSKIP, papi.StatusPASS}, true, true},
+		{"skip-plus-fail", []string{papi.StatusSKIP, papi.StatusFAIL}, false, true},
+		{"all-skipped", []string{papi.StatusSKIP, papi.StatusSKIP}, false, false},
+		{"softfail-passes", []string{papi.StatusSOFTFAIL}, true, true},
+		{"no-sets", nil, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			passed, applied := verificationOutcome(tc.statuses)
+			require.Equal(t, tc.passed, passed)
+			require.Equal(t, tc.applied, applied)
+		})
+	}
 }

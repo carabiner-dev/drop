@@ -270,6 +270,11 @@ writes the bare statement.
 					return fmt.Errorf("%w (try downloading with \"drop get\")", err)
 				case errors.Is(err, drop.ErrNoMatchingArchiveEntry):
 					return fmt.Errorf("%w (pick one with --entry or run interactively)", err)
+				case errors.Is(err, drop.ErrNoPolicyApplies):
+					if !opts.Quiet {
+						fmt.Println(noPolicyAppliesMessage("install", asset))
+					}
+					return fmt.Errorf("%w (set %s or use %s)", err, flagPolicyRepo, flagInsecure)
 				case errors.Is(err, drop.ErrNoPolicyAvailable):
 					if !opts.Quiet {
 						fmt.Println(noPolicyMessage("install", asset, opts.PolicyRepo))

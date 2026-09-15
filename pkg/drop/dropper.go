@@ -30,6 +30,7 @@ const CommunityPolicyRepositoryURL = "https://github.com/policylabs/oss"
 var (
 	ErrNoPolicyAvailable  = errors.New("no verification policies available for artifact")
 	ErrVerificationFailed = errors.New("asset failed verification, refusing to install")
+	ErrNoPolicyApplies    = errors.New("none of the verification policies apply to this release")
 	ErrNoPlatformVariant  = errors.New("no installable variant found for the specified platform")
 	ErrInstallAborted     = errors.New("installation aborted")
 	ErrAlreadyInstalled   = errors.New("already installed")
@@ -107,7 +108,7 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 		)
 	} else {
 		ok, resultSet, err := dropper.impl.VerifyAsset(&dropper.Options, policies, asset, downloadPath)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrNoPolicyApplies) {
 			_ = os.Remove(downloadPath) //nolint:errcheck
 			return fmt.Errorf("error verifying asset: %w", err)
 		}
@@ -120,9 +121,13 @@ func (dropper *Dropper) Get(spec github.AssetDataProvider, funcs ...FuncGetOptio
 			}
 		}
 
-		// If verification failed, we're done
+		// If verification failed, we're done. Policies that all skipped
+		// are reported as such rather than as a failed verification.
 		if !ok {
 			_ = os.Remove(downloadPath) //nolint:errcheck
+			if errors.Is(err, ErrNoPolicyApplies) {
+				return ErrNoPolicyApplies
+			}
 			return ErrVerificationFailed
 		}
 	}
@@ -192,7 +197,7 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetO
 		)
 	} else {
 		ok, resultSet, err := dropper.impl.VerifyAsset(&dropper.Options, policies, artifact.Asset, downloadPath)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrNoPolicyApplies) {
 			return fmt.Errorf("error verifying asset: %w", err)
 		}
 
@@ -204,8 +209,12 @@ func (dropper *Dropper) Install(spec github.AssetDataProvider, funcs ...FuncGetO
 			}
 		}
 
-		// If verification failed, we're done
+		// If verification failed, we're done. Policies that all skipped
+		// are reported as such rather than as a failed verification.
 		if !ok {
+			if errors.Is(err, ErrNoPolicyApplies) {
+				return ErrNoPolicyApplies
+			}
 			return ErrVerificationFailed
 		}
 	}

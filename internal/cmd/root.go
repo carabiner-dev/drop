@@ -25,6 +25,30 @@ const (
 	flagInsecure   = "--insecure"
 )
 
+// noPolicyAppliesMessage explains that the publisher's policies exist but
+// none applies to the release being installed (their conditions skipped
+// them all), so nothing was verified, and lists the ways to proceed.
+func noPolicyAppliesMessage(subcommand string, asset *github.Asset) string {
+	slug := asset.Org + "/" + asset.Repo
+	return fmt.Sprintf(`
+  ❌ %s
+
+  %s found policies for this project, but every one of them declared it
+  does not apply to release %s, so nothing was verified. The publisher
+  may not cover this version yet. You have two options:
+
+    1. Use policies from another repository or a local checkout:
+         %s %s %s=<repo> %s
+
+    2. Skip verification (not recommended):
+         %s %s %s %s
+`,
+		w(fmt.Sprintf("No verification policy applies to %s %s", slug, asset.Version)), appname, asset.Version,
+		appname, subcommand, flagPolicyRepo, slug,
+		appname, subcommand, flagInsecure, slug,
+	)
+}
+
 // noPolicyMessage explains that an artifact cannot be verified because its
 // publisher has no policies, and lists the ways to proceed: requesting
 // community policies, using another policy source or skipping verification.

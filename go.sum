@@ -114,8 +114,8 @@ github.com/brianvoe/gofakeit/v6 v6.28.0 h1:Xib46XXuQfmlLS2EXRuJpqcw8St6qSZz75OUo
 github.com/brianvoe/gofakeit/v6 v6.28.0/go.mod h1:Xj58BMSnFqcn/fAQeSK+/PLtC5kSb7FJIq4JyGa8vEs=
 github.com/c2sp/wycheproof v0.0.0-20260105152342-fca0d3ba9f12 h1:C34LW7dhWgjAaAOdNB8z2UCyJsXDjC6UTILljHuqOlI=
 github.com/c2sp/wycheproof v0.0.0-20260105152342-fca0d3ba9f12/go.mod h1:U1QjrC6KepOmtVmJn3QsKOTd9HliGr/da5afPEhLRnk=
-github.com/carabiner-dev/ampel v1.3.10 h1:+2nH+QBYEMiJPAdQ3Jg9GZ3AVXZsfRmWZXZGZHIX/LY=
-github.com/carabiner-dev/ampel v1.3.10/go.mod h1:9iFPDu/clHdFehoIOAF+vkoPCAtK4Ds/1JfPu8rsXx0=
+github.com/carabiner-dev/ampel v1.3.11-0.20260915043527-4226b20635e0 h1:trfaejW+bg/XGYVDgHHIFtp4DmeExnMChj2mEdxh7XQ=
+github.com/carabiner-dev/ampel v1.3.11-0.20260915043527-4226b20635e0/go.mod h1:ND9paCs14BuoCxIDVzlwG5S8OKkRMRt3KWbfIy5ba/g=
 github.com/carabiner-dev/attestation v0.2.1 h1:VhjV5YlO9TsW50Sr/Zd54bdbZhhDAqgxC3kB9z1I+3Q=
 github.com/carabiner-dev/attestation v0.2.1/go.mod h1:O84vF84RZG3pJO/6BYrPs718bZviHF5DKajP1HsrDpw=
 github.com/carabiner-dev/collector v0.3.17-0.20260915003800-5417e74c4ab7 h1:qJTDfyD6wqpD4ViTs2U3oXOHGD6L13/soWp4L9+asHs=
@@ -136,8 +136,8 @@ github.com/carabiner-dev/openeox v1.0.0 h1:iVfs9jgu2s2Jrb95bJK5FWMx55qF3aHBk9RhU
 github.com/carabiner-dev/openeox v1.0.0/go.mod h1:+6i8M7PhtWk2jRtUC1anZnhmOr5cXKMLGYjwFcqPDa0=
 github.com/carabiner-dev/osv v0.1.2 h1:W5nZOGuygnqzB7YbGon6ab3iFHxFZZgzS3m7GEvYnfc=
 github.com/carabiner-dev/osv v0.1.2/go.mod h1:06cHx1aOdlb53feQxjBIRt3NSFfQKg1b1hrHHj/57QQ=
-github.com/carabiner-dev/policy v0.5.5 h1:+UU9awmI77uL5tBhl44eKF3iPcU0/WGsnITOQNFxY5M=
-github.com/carabiner-dev/policy v0.5.5/go.mod h1:JVGoDp9BRtW6meaZPNE9DbcHasDWjeN3Aei4qiHOlpo=
+github.com/carabiner-dev/policy v0.5.6-0.20260915041144-f77225397c6f h1:IeHQB3NFkaAgS4/N3FjRiXhkC//H+YKKym/+AMoeqrM=
+github.com/carabiner-dev/policy v0.5.6-0.20260915041144-f77225397c6f/go.mod h1:E0KFvUp/xVj6ZCoFHdrPJ1i/G2uUDlwpFn26J+z6M+8=
 github.com/carabiner-dev/predicates v0.5.2-0.20260914235924-fec2bb07398b h1:awzbdrttZn5exek5CmMtjbUMUWhpo7vXIVI8SE3UdDs=
 github.com/carabiner-dev/predicates v0.5.2-0.20260914235924-fec2bb07398b/go.mod h1:AlLDfExvCswnVkR7g04ZSaP4xnQCGKzEEzEdf5izNt0=
 github.com/carabiner-dev/sbomfs v0.2.0 h1:7OG0Su6iz9sPWcAFzSsaauVZQpKayzrJvGWe0NoxbPw=

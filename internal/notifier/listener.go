@@ -6,6 +6,7 @@ package notifier
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/fatih/color"
 
@@ -103,17 +104,7 @@ func (l *Listener) HandleEvent(event *drop.Event) {
 		case drop.EventVerbSkipped:
 			fmt.Printf("  🚫  %s\n", w("Security verification skipped"))
 		case drop.EventVerbResult:
-			// One line per policy: the outcome in bold, then the message
-			// the policy produced.
-			message := event.GetDataField(drop.EventDataMessage)
-			if message != "" {
-				message = ": " + message
-			}
-			if event.GetDataField(drop.EventDataStatus) == "PASS" {
-				fmt.Printf("      ✅  %s%s\n", bold("PASS"), message)
-			} else {
-				fmt.Printf("      ❌  %s%s\n", bold("FAIL"), message)
-			}
+			l.renderPolicyResult(event)
 		case drop.EventVerbDone:
 			// The per-policy lines already told the story; the bare
 			// outcome is only shown when there were none.
@@ -178,5 +169,23 @@ func (l *Listener) handleInstallEvent(event *drop.Event) {
 		case drop.EventVerbDone:
 			fmt.Println("      ✔️  done")
 		}
+	}
+}
+
+// renderPolicyResult prints one line per policy: the outcome in bold, then
+// the message the policy produced. Skipped policies explain their condition.
+func (l *Listener) renderPolicyResult(event *drop.Event) {
+	message := event.GetDataField(drop.EventDataMessage)
+	if message != "" {
+		message = ": " + message
+	}
+	switch event.GetDataField(drop.EventDataStatus) {
+	case "PASS":
+		fmt.Printf("      ✅  %s%s\n", bold("PASS"), message)
+	case "SKIP":
+		// The condition message already says the policy was skipped
+		fmt.Printf("      ⏭️  %s%s\n", bold("SKIP"), strings.Replace(message, ": Skipped: ", ": ", 1))
+	default:
+		fmt.Printf("      ❌  %s%s\n", bold("FAIL"), message)
 	}
 }
