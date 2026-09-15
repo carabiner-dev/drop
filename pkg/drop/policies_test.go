@@ -154,3 +154,49 @@ func TestFetchPoliciesCommunityFallback(t *testing.T) {
 		})
 	}
 }
+
+// hjsonPolicySet is a bare policy set as humans author it, with comments and
+// unquoted keys, not wrapped in an attestation.
+const hjsonPolicySet = `{
+    // Policy set written in HJSON
+    id: hjson-release
+    meta: { version: 1 }
+    policies: [
+        {
+            id: "pass"
+            tenets: [ { id: "t", code: "true" } ]
+        }
+    ]
+}`
+
+// TestFetchPoliciesHJSON checks that policy sets authored in HJSON in the
+// policy directory are read alongside attested JSON ones.
+func TestFetchPoliciesHJSON(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	repo, err := git.PlainInit(dir, false)
+	require.NoError(t, err)
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	policyDir := PolicyPath(testAppName)
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, policyDir), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, policyDir, "release.hjson"), []byte(hjsonPolicySet), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, policyDir, "attested.intoto.json"), []byte(policySetAttestation("attested")), 0o600))
+	_, err = wt.Add(policyDir)
+	require.NoError(t, err)
+	_, err = wt.Commit("policies", &git.CommitOptions{
+		Author: &object.Signature{Name: "test", Email: "test@example.com", When: time.Now()},
+	})
+	require.NoError(t, err)
+
+	opts := &Options{Listener: &NoopListener{}, PolicyRepository: fileLocator(dir)}
+	asset := &github.Asset{Host: github.DefaultHost, Org: testOrg, Repo: testAppName}
+	sets, err := (&defaultImplementation{}).FetchPolicies(opts, asset)
+	require.NoError(t, err)
+	ids := make([]string, 0, len(sets))
+	for _, set := range sets {
+		ids = append(ids, set.GetId())
+	}
+	require.ElementsMatch(t, []string{"hjson-release", "attested"}, ids)
+}
