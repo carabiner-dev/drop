@@ -8,8 +8,8 @@ require (
 	github.com/carabiner-dev/attestation v0.2.1
 	github.com/carabiner-dev/collector v0.3.17-0.20260915003800-5417e74c4ab7
 	github.com/carabiner-dev/hasher v0.2.4
-	github.com/carabiner-dev/policy v0.5.6-0.20260915041144-f77225397c6f
-	github.com/carabiner-dev/predicates v0.5.3
+	github.com/carabiner-dev/policy v0.5.6
+	github.com/carabiner-dev/predicates v0.5.4
 	github.com/carabiner-dev/signer v0.6.2
 	github.com/carabiner-dev/termtable v1.1.0
 	github.com/charmbracelet/huh v1.0.0
@@ -26,7 +26,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
-	github.com/ulikunitz/xz v0.5.16
+	github.com/ulikunitz/xz v0.5.17
 	golang.org/x/oauth2 v0.37.0
 	google.golang.org/protobuf v1.36.12
 	sigs.k8s.io/release-utils v0.12.5-0.20260825061901-4f1f891011bb
