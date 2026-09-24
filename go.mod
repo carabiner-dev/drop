@@ -21,7 +21,7 @@ require (
 	github.com/klauspost/compress v1.20.0
 	github.com/mattn/go-isatty v0.0.24
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
-	github.com/rodaine/table v1.3.1
+	github.com/rodaine/table v1.4.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -182,7 +182,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
-	github.com/mattn/go-runewidth v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.30 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c // indirect
