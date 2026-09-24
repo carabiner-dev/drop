@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/carabiner-dev/ampel v1.3.11-0.20260915043527-4226b20635e0
 	github.com/carabiner-dev/attestation v0.2.1
-	github.com/carabiner-dev/collector v0.3.17-0.20260915003800-5417e74c4ab7
+	github.com/carabiner-dev/collector v0.3.17
 	github.com/carabiner-dev/hasher v0.2.4
 	github.com/carabiner-dev/policy v0.5.6
 	github.com/carabiner-dev/predicates v0.5.4
@@ -87,7 +87,7 @@ require (
 	github.com/carabiner-dev/osv v0.1.2 // indirect
 	github.com/carabiner-dev/sbomfs v0.2.0 // indirect
 	github.com/carabiner-dev/spdx3 v0.1.0 // indirect
-	github.com/carabiner-dev/stash v0.0.0-20260908191435-d6225e020426 // indirect
+	github.com/carabiner-dev/stash v0.0.0-20260914181612-673fcf191e49 // indirect
 	github.com/carabiner-dev/vcslocator v0.5.0 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
