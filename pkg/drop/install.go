@@ -56,6 +56,10 @@ const (
 	dataKeyName = "name"
 	dataKeyPath = "path"
 	dataKeySudo = "sudo"
+
+	// dataKeyPrevious flags removal events about the artifact a previous
+	// installation left behind (as opposed to an app being uninstalled).
+	dataKeyPrevious = "previous"
 )
 
 // InstallArtifact is a concrete release asset chosen for installation.
@@ -821,9 +825,10 @@ func staleInstall(previous *inventory.Record, artifact *InstallArtifact, binDir 
 	return false
 }
 
-// RemoveInstalled removes the artifact a previous installation left in the
-// system: a binary file (through sudo when its directory is not writable)
-// or a package, through the package manager.
+// RemoveInstalled removes the artifact an installation left in the system:
+// a binary file (through sudo when its directory is not writable) or a
+// package, through the package manager. It serves both to uninstall an app
+// and to clean up after a reinstall in another format or directory.
 func (di *defaultImplementation) RemoveInstalled(opts *GetOptions, record *inventory.Record) error {
 	switch record.Kind {
 	case string(ArtifactPackage):
@@ -846,10 +851,11 @@ func (di *defaultImplementation) removePackage(opts *GetOptions, record *invento
 	opts.Listener.HandleEvent(&Event{
 		Object: EventObjectRemove, Verb: EventVerbRunning,
 		Data: map[string]string{
-			dataKeyKind: string(ArtifactPackage),
-			"format":    record.PackageFormat,
-			dataKeyName: record.Name,
-			dataKeySudo: strconv.FormatBool(sudo),
+			dataKeyKind:     string(ArtifactPackage),
+			"format":        record.PackageFormat,
+			dataKeyName:     record.Name,
+			dataKeySudo:     strconv.FormatBool(sudo),
+			dataKeyPrevious: strconv.FormatBool(removingPrevious(opts, record)),
 		},
 	})
 
@@ -891,10 +897,11 @@ func (di *defaultImplementation) removeBinary(opts *GetOptions, record *inventor
 	opts.Listener.HandleEvent(&Event{
 		Object: EventObjectRemove, Verb: EventVerbRunning,
 		Data: map[string]string{
-			dataKeyKind: record.Kind,
-			dataKeyName: record.Name,
-			dataKeyPath: record.BinPath,
-			dataKeySudo: strconv.FormatBool(sudo),
+			dataKeyKind:     record.Kind,
+			dataKeyName:     record.Name,
+			dataKeyPath:     record.BinPath,
+			dataKeySudo:     strconv.FormatBool(sudo),
+			dataKeyPrevious: strconv.FormatBool(removingPrevious(opts, record)),
 		},
 	})
 
@@ -911,6 +918,12 @@ func (di *defaultImplementation) removeBinary(opts *GetOptions, record *inventor
 		Data: map[string]string{dataKeyKind: record.Kind, dataKeyName: record.Name, dataKeyPath: record.BinPath},
 	})
 	return nil
+}
+
+// removingPrevious reports whether record is the artifact left by the
+// installation a reinstall is replacing, rather than an app being removed.
+func removingPrevious(opts *GetOptions, record *inventory.Record) bool {
+	return opts.previous != nil && opts.previous.Key() == record.Key()
 }
 
 // buildPackageRemoveCmd returns the argv to uninstall a package by name

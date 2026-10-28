@@ -64,7 +64,7 @@ GitHub; see %s for that.
 // installedTable renders the inventory records as a listing with the
 // version column aligned to the right and the verification mark centered.
 func installedTable(records []*inventory.Record, toTerminal bool) *termtable.Table {
-	titles := []string{"NAME", "VERSION", "KIND", "LOCATION", "VERIFIED", "UPDATED", "REPOSITORY"}
+	titles := []string{colName, colVersion, colKind, colLocation, colVerified, colUpdated, colRepository}
 	rows := make([][]string, 0, len(records))
 	for _, r := range records {
 		rows = append(rows, []string{

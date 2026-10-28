@@ -159,12 +159,16 @@ func (l *Listener) handleInstallEvent(event *drop.Event) {
 			if event.GetDataField("sudo") == flagTrue {
 				sudo = " with sudo (you may be asked for your password)"
 			}
+			previous := ""
+			if event.GetDataField("previous") == flagTrue {
+				previous = "previous "
+			}
 			if event.GetDataField("kind") == string(drop.ArtifactPackage) {
 				format := event.GetDataField("format")
-				fmt.Printf("  🧹 %s\n", w(fmt.Sprintf("Removing previous %s package%s...", format, sudo)))
+				fmt.Printf("  🧹 %s\n", w(fmt.Sprintf("Removing %s%s package%s...", previous, format, sudo)))
 			} else {
 				path := event.GetDataField("path")
-				fmt.Printf("  🧹 %s\n", w(fmt.Sprintf("Removing previous binary %s%s...", path, sudo)))
+				fmt.Printf("  🧹 %s\n", w(fmt.Sprintf("Removing %sbinary %s%s...", previous, path, sudo)))
 			}
 		case drop.EventVerbDone:
 			fmt.Println("      ✔️  done")
