@@ -6,10 +6,13 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"os"
 	"slices"
+	"strconv"
 	"time"
 
-	"github.com/rodaine/table"
+	"github.com/carabiner-dev/termtable"
+	"github.com/mattn/go-isatty"
 
 	"github.com/carabiner-dev/drop/pkg/github"
 	"github.com/carabiner-dev/drop/pkg/system"
@@ -31,33 +34,93 @@ type Options struct {
 	Long bool
 }
 
-func columnTable(w io.Writer, numCols int, data []string) {
-	headers := make([]interface{}, numCols)
-	tbl := table.New(headers...)
-	tbl.WithHeaderFormatter(func(format string, vals ...interface{}) string {
-		return ""
-	})
-	tbl.WithWriter(w)
+// shortColumns is the number of columns the short listing lays names out in.
+const shortColumns = 3
 
-	rows := [][]string{}
-	cols := make([]string, 0, numCols)
-
-	for _, cell := range data {
-		if len(cols) == numCols {
-			rows = append(rows, cols)
-			cols = make([]string, 0, numCols)
-		}
-		cols = append(cols, cell)
+// lsTable builds the headerless, borderless table the ls listings share.
+// Every column is exactly as wide as its content, except the last one,
+// which takes whatever space is left: it is where long names are trimmed
+// when the terminal is too narrow for them.
+//
+// On a terminal the table may use the whole width; when writing anywhere
+// else there is no width to honor, so the natural width of the content
+// is used.
+func lsTable(w io.Writer, rows [][]string) *termtable.Table {
+	opts := []termtable.TableOption{
+		termtable.WithTableStyle("border: none"),
+		termtable.WithTablePadding(termtable.Padding{Right: 1}),
+		termtable.WithMinWidth(1),
 	}
-	if len(cols) != 0 {
-		// Pad the last row, the table formats every row to the full
-		// column count and renders missing cells as %!s(MISSING)
-		for len(cols) < numCols {
-			cols = append(cols, "")
+	if isTerminal(w) {
+		opts = append(opts, termtable.WithMaxWidthPercent(100))
+	} else {
+		opts = append(opts, termtable.WithMaxWidth(4096))
+	}
+	t := termtable.NewTable(opts...)
+	if len(rows) == 0 {
+		return t
+	}
+
+	numCols := len(rows[0])
+	for i := range numCols - 1 {
+		width := 0
+		for _, row := range rows {
+			width = max(width, termtable.DisplayWidth(row[i]))
 		}
+		t.Column(i).SetMin(width).SetWeight(0)
+	}
+	for _, cells := range rows {
+		row := t.AddRow()
+		for _, content := range cells {
+			row.AddCell(termtable.WithContent(content), termtable.WithSingleLine())
+		}
+	}
+	return t
+}
+
+// isTerminal reports whether w is an interactive terminal.
+func isTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	return ok && isatty.IsTerminal(f.Fd())
+}
+
+// columnTable lays data out in numCols columns, row by row, like a short
+// ls listing. The last row is padded so every row has numCols cells.
+func columnTable(w io.Writer, numCols int, data []string) {
+	rows := [][]string{}
+	for start := 0; start < len(data); start += numCols {
+		cols := make([]string, numCols)
+		copy(cols, data[start:min(start+numCols, len(data))])
 		rows = append(rows, cols)
 	}
-	tbl.SetRows(rows).Print()
+	_, _ = lsTable(w, rows).WriteTo(w) //nolint:errcheck
+}
+
+// longTable prints the "total" line and the rows of a long listing.
+func longTable(w io.Writer, rows [][]string) error {
+	if _, err := fmt.Fprintf(w, "total %d\n", len(rows)); err != nil {
+		return err
+	}
+	t := lsTable(w, rows)
+	if len(rows) > 0 {
+		t.Column(3).SetAlign(termtable.AlignRight) // size
+		t.Column(5).SetAlign(termtable.AlignRight) // day
+	}
+	_, err := t.WriteTo(w)
+	return err
+}
+
+// longRow builds one row of a long listing: the permission-like
+// indicators, who published the item and where, its size, when it was
+// published and its name. The time shows the hour for items from the
+// current year and the year otherwise, like ls -l.
+func longRow(perms, owner, org string, size int, when time.Time, name string) []string {
+	when = when.Local()
+	hour := when.Format("15:04")
+	if when.Year() != time.Now().Year() {
+		hour = strconv.Itoa(when.Year())
+	}
+	return []string{perms, owner, org, strconv.Itoa(size), when.Format("Jan"), strconv.Itoa(when.Day()), hour, name}
 }
 
 func permString(item github.AssetDataProvider) string {
@@ -103,89 +166,43 @@ func permString(item github.AssetDataProvider) string {
 	return string(str)
 }
 
-func (ls *LsTTY) RenderReleaseInstallables(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
-	if ls.Options.Long {
-		tbl := table.New("perms", "owner", "org", "size", "month", "day", "hour", "name")
-		tbl.WithHeaderFormatter(func(format string, vals ...any) string {
-			return fmt.Sprintf("total %d\n", len(assets))
-		})
-		tbl.WithWriter(w)
-
-		for _, a := range assets {
-			m := a.GetUpdatedAt().Month().String()[0:3]
-			d := fmt.Sprintf("%d", a.GetUpdatedAt().Day())
-			h := fmt.Sprintf("%2d:%2d", a.GetUpdatedAt().Local().Hour(), a.GetUpdatedAt().Local().Minute())
-			if a.GetUpdatedAt().Year() != time.Now().Year() {
-				h = fmt.Sprintf("%d", a.GetUpdatedAt().Year())
-			}
-			tbl.AddRow(permString(a), a.GetAuthor(), release.GetOrg(), a.GetSize(), m, d, h, a.GetName())
-		}
-
-		tbl.Print()
-	} else {
+// renderAssets lists release assets or installables, long or short.
+func (ls *LsTTY) renderAssets(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
+	if !ls.Options.Long {
 		data := make([]string, 0, len(assets))
 		for _, a := range assets {
 			data = append(data, a.GetName())
 		}
-		columnTable(w, 3, data)
+		columnTable(w, shortColumns, data)
+		return nil
 	}
-	return nil
+	rows := make([][]string, 0, len(assets))
+	for _, a := range assets {
+		rows = append(rows, longRow(permString(a), a.GetAuthor(), release.GetOrg(), a.GetSize(), a.GetUpdatedAt(), a.GetName()))
+	}
+	return longTable(w, rows)
+}
+
+func (ls *LsTTY) RenderReleaseInstallables(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
+	return ls.renderAssets(w, release, assets)
 }
 
 func (ls *LsTTY) RenderReleaseAssets(w io.Writer, release github.ReleaseDataProvider, assets []github.AssetDataProvider) error {
-	if ls.Options.Long {
-		tbl := table.New("perms", "owner", "org", "size", "month", "day", "hour", "name")
-		tbl.WithHeaderFormatter(func(format string, vals ...interface{}) string {
-			return fmt.Sprintf("total %d\n", len(assets))
-		})
-		tbl.WithWriter(w)
-
-		for _, a := range assets {
-			m := a.GetUpdatedAt().Month().String()[0:3]
-			d := fmt.Sprintf("%d", a.GetUpdatedAt().Day())
-			h := fmt.Sprintf("%2d:%2d", a.GetUpdatedAt().Local().Hour(), a.GetUpdatedAt().Local().Minute())
-			if a.GetUpdatedAt().Year() != time.Now().Year() {
-				h = fmt.Sprintf("%d", a.GetUpdatedAt().Year())
-			}
-			tbl.AddRow(permString(a), a.GetAuthor(), release.GetOrg(), a.GetSize(), m, d, h, a.GetName())
-		}
-
-		tbl.Print()
-	} else {
-		data := make([]string, 0, len(assets))
-		for _, a := range assets {
-			data = append(data, a.GetName())
-		}
-		columnTable(w, 3, data)
-	}
-	return nil
+	return ls.renderAssets(w, release, assets)
 }
 
-func (ls *LsTTY) RenderRepoReleases(w io.Writer, repo github.RepoDataProvider, releases []github.ReleaseDataProvider) error {
-	if ls.Options.Long {
-		tbl := table.New("perms", "owner", "org", "size", "month", "day", "hour", "name")
-		tbl.WithHeaderFormatter(func(format string, vals ...interface{}) string {
-			return fmt.Sprintf("total %d\n", len(releases))
-		})
-		tbl.WithWriter(w)
-
-		for _, r := range releases {
-			m := r.GetCreatedAt().Month().String()[0:3]
-			d := fmt.Sprintf("%d", r.GetCreatedAt().Local().Day())
-			h := fmt.Sprintf("%2d:%2d", r.GetCreatedAt().Local().Hour(), r.GetCreatedAt().Local().Minute())
-			if r.GetCreatedAt().Year() != time.Now().Year() {
-				h = fmt.Sprintf("%d", r.GetCreatedAt().Local().Year())
-			}
-			tbl.AddRow("release", r.GetAuthor(), r.GetOrg(), "0", m, d, h, r.GetVersion())
-		}
-
-		tbl.Print()
-	} else {
+func (ls *LsTTY) RenderRepoReleases(w io.Writer, _ github.RepoDataProvider, releases []github.ReleaseDataProvider) error {
+	if !ls.Options.Long {
 		data := make([]string, 0, len(releases))
 		for _, r := range releases {
 			data = append(data, r.GetVersion())
 		}
-		columnTable(w, 3, data)
+		columnTable(w, shortColumns, data)
+		return nil
 	}
-	return nil
+	rows := make([][]string, 0, len(releases))
+	for _, r := range releases {
+		rows = append(rows, longRow("release", r.GetAuthor(), r.GetOrg(), 0, r.GetCreatedAt(), r.GetVersion()))
+	}
+	return longTable(w, rows)
 }
