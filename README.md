@@ -165,6 +165,11 @@ the version being installed to the AMPEL verifier so policies can gate on versio
 How that works, what drop injects, and how to test a policy before publishing it
 is in [docs/policies.md](docs/policies.md).
 
+drop talks to the GitHub API to list releases and read policies. Anonymous
+requests are rate limited, so set `GITHUB_TOKEN` (or `GH_TOKEN`, as the gh CLI
+does) in the environment for busy shells, CI, or private releases; the token
+is also used to download the attestations of private releases.
+
 When a project has no policies, drop stops and says so. You can then:
 
 ```bash

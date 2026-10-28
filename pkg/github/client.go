@@ -17,17 +17,35 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Environment variables read for a GitHub token, in order of precedence.
+// GITHUB_TOKEN is the conventional name (and what GitHub Actions jobs pass
+// along); GH_TOKEN is the gh CLI's, honored so a shell already set up for gh
+// works without changes.
+var tokenEnvVars = []string{"GITHUB_TOKEN", "GH_TOKEN"}
+
+// tokenFromEnv returns the first GitHub token set in the environment and the
+// name of the variable it came from.
+func tokenFromEnv() (token, source string) {
+	for _, name := range tokenEnvVars {
+		if v := os.Getenv(name); v != "" {
+			return v, name
+		}
+	}
+	return "", ""
+}
+
 func New() (*Client, error) {
-	token := os.Getenv("GITHUB_TOKEN")
+	token, source := tokenFromEnv()
 
 	var httpClient *http.Client
 	httpClient = http.DefaultClient
 	if token != "" {
+		logrus.Debugf("Authenticating to the GitHub API with the token in %s", source)
 		httpClient = oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: token},
 		))
 	} else {
-		logrus.Debugf("WARN: Running unauthenticated. Watch out for rate limits from  the GitHub API")
+		logrus.Debugf("WARN: Running unauthenticated (set GITHUB_TOKEN or GH_TOKEN). Watch out for rate limits from the GitHub API")
 	}
 
 	client := gogithub.NewClient(httpClient)
