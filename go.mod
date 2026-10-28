@@ -11,7 +11,7 @@ require (
 	github.com/carabiner-dev/policy v0.5.6
 	github.com/carabiner-dev/predicates v0.5.4
 	github.com/carabiner-dev/signer v0.6.2
-	github.com/carabiner-dev/termtable v1.1.0
+	github.com/carabiner-dev/termtable v1.1.1-0.20261028203715-538646d69a77
 	github.com/charmbracelet/huh v1.0.0
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-billy/v5 v5.9.2
@@ -255,8 +255,8 @@ require (
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/api v0.290.0 // indirect
