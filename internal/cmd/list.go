@@ -61,23 +61,9 @@ GitHub; see %s for that.
 	parentCmd.AddCommand(listCmd)
 }
 
-// installedTable renders the inventory records as a borderless table with a
-// rule under the header and the version column aligned to the right.
+// installedTable renders the inventory records as a listing with the
+// version column aligned to the right and the verification mark centered.
 func installedTable(records []*inventory.Record, toTerminal bool) *termtable.Table {
-	// A listing never wraps its cells. The table is indented like drop's
-	// other output; termtable reserves the indent from the terminal width
-	// so the table may use the rest of the screen. When piped there is no
-	// width to honor, so the natural width of the content is used.
-	opts := []termtable.TableOption{
-		termtable.WithTableStyle("border: none"),
-		termtable.WithIndent(2),
-		termtable.WithMaxWidthPercent(100),
-	}
-	if !toTerminal {
-		opts = append(opts, termtable.WithMaxWidth(4096))
-	}
-	t := termtable.NewTable(opts...)
-
 	titles := []string{"NAME", "VERSION", "KIND", "LOCATION", "VERIFIED", "UPDATED", "REPOSITORY"}
 	rows := make([][]string, 0, len(records))
 	for _, r := range records {
@@ -86,33 +72,9 @@ func installedTable(records []*inventory.Record, toTerminal bool) *termtable.Tab
 			r.UpdatedAt.Local().Format("2006-01-02"), recordRepository(r),
 		})
 	}
-
-	// Every column takes exactly the width of its widest content: the
-	// floor is the content width and a zero weight keeps it from growing.
-	for i, title := range titles {
-		width := termtable.DisplayWidth(title)
-		for _, row := range rows {
-			width = max(width, termtable.DisplayWidth(row[i]))
-		}
-		t.Column(i).SetMin(width).SetWeight(0)
-	}
+	t := listingTable(titles, rows, toTerminal)
 	t.Column(1).SetAlign(termtable.AlignRight)
 	t.Column(4).SetAlign(termtable.AlignCenter)
-
-	head := t.AddHeader(termtable.WithRowBorderBottom(termtable.BorderEdgeSolid))
-	for _, title := range titles {
-		head.AddCell(termtable.WithContent(title), termtable.WithBold(), termtable.WithSingleLine())
-	}
-	for _, cells := range rows {
-		row := t.AddRow()
-		for i, content := range cells {
-			cellOpts := []termtable.CellOption{termtable.WithContent(content), termtable.WithSingleLine()}
-			if i == 0 {
-				cellOpts = append(cellOpts, termtable.WithBold())
-			}
-			row.AddCell(cellOpts...)
-		}
-	}
 	return t
 }
 

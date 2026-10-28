@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 
+	"github.com/carabiner-dev/termtable"
 	"github.com/spf13/cobra"
 	util "sigs.k8s.io/release-utils/helpers"
 
@@ -132,19 +132,7 @@ the current directory (or the directory set with --attestation-out), see
 
 			// Print the update summary before touching anything
 			fmt.Println("\nUpdating:")
-			tw := tabwriter.NewWriter(os.Stdout, 2, 2, 2, ' ', 0)
-			for _, status := range updates {
-				kind := status.Record.Kind
-				if !status.Record.Verified {
-					kind += " (unverified)"
-				}
-				_, _ = fmt.Fprintf( //nolint:errcheck
-					tw, "  %s\t%s → %s\t%s\t%s/%s/%s\n",
-					status.Record.Name, status.Record.Version, status.LatestVersion,
-					kind, status.Record.Host, status.Record.Org, status.Record.Repo,
-				)
-			}
-			if err := tw.Flush(); err != nil {
+			if _, err := updatesTable(updates, interactive()).WriteTo(os.Stdout); err != nil {
 				return fmt.Errorf("rendering update summary: %w", err)
 			}
 			fmt.Printf("\n%d app(s) will be updated.\n", len(updates))
@@ -186,6 +174,26 @@ the current directory (or the directory set with --attestation-out), see
 	}
 	opts.AddFlags(attCmd)
 	parentCmd.AddCommand(attCmd)
+}
+
+// updatesTable renders the pending updates as a listing: the app, the
+// version jump, how it was installed and where it comes from.
+func updatesTable(updates []*drop.UpdateStatus, toTerminal bool) *termtable.Table {
+	titles := []string{"NAME", "VERSION", "KIND", "REPOSITORY"}
+	rows := make([][]string, 0, len(updates))
+	for _, status := range updates {
+		kind := status.Record.Kind
+		if !status.Record.Verified {
+			kind += " (unverified)"
+		}
+		rows = append(rows, []string{
+			status.Record.Name,
+			status.Record.Version + " → " + status.LatestVersion,
+			kind,
+			recordRepository(status.Record),
+		})
+	}
+	return listingTable(titles, rows, toTerminal)
 }
 
 // confirm asks the user to approve the pending updates, defaulting to no.
