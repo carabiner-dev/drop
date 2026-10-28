@@ -26,7 +26,14 @@ $ drop install carabiner-dev/drop
 
 ## Installing drop
 
-Grab a binary from the [releases page](https://github.com/carabiner-dev/drop/releases)
+On macOS or Linux with Homebrew, install it from the Carabiner tap:
+
+```bash
+brew tap carabiner-dev/tap
+brew install drop
+```
+
+Otherwise grab a binary from the [releases page](https://github.com/carabiner-dev/drop/releases)
 or build it with Go:
 
 ```bash
@@ -36,6 +43,11 @@ go install github.com/carabiner-dev/drop@latest
 Once you have it, drop can keep itself up to date like any other app:
 `drop install carabiner-dev/drop` verifies the release against
 [drop's own policy](https://github.com/carabiner-dev/.github/blob/main/ampel/policies/release/drop/drop-release.hjson).
+In GitHub Actions, the
+[`carabiner-dev/actions/install/drop`](https://github.com/carabiner-dev/actions#available-installers)
+installer sets it up on the runner, and
+[`carabiner-dev/actions/drop/install`](https://github.com/carabiner-dev/actions#dropinstall)
+installs other apps with it.
 
 ## Usage
 

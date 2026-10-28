@@ -6,7 +6,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/carabiner-dev/termtable"
 	"github.com/spf13/cobra"
@@ -52,7 +51,7 @@ GitHub; see %s for that.
 				return nil
 			}
 
-			if _, err := fmt.Fprint(os.Stdout, indent(installedTable(records, interactive()).String())); err != nil {
+			if _, err := installedTable(records, interactive()).WriteTo(os.Stdout); err != nil {
 				return fmt.Errorf("rendering installed apps: %w", err)
 			}
 			fmt.Printf("\n  %d app(s) installed with drop\n", len(records))
@@ -65,11 +64,13 @@ GitHub; see %s for that.
 // installedTable renders the inventory records as a borderless table with a
 // rule under the header and the version column aligned to the right.
 func installedTable(records []*inventory.Record, toTerminal bool) *termtable.Table {
-	// A listing never wraps its cells. On a terminal the table may use the
-	// whole width; when piped there is no width to honor, so the natural
-	// width of the content is used.
+	// A listing never wraps its cells. The table is indented like drop's
+	// other output; termtable reserves the indent from the terminal width
+	// so the table may use the rest of the screen. When piped there is no
+	// width to honor, so the natural width of the content is used.
 	opts := []termtable.TableOption{
 		termtable.WithTableStyle("border: none"),
+		termtable.WithIndent(2),
 		termtable.WithMaxWidthPercent(100),
 	}
 	if !toTerminal {
@@ -113,15 +114,6 @@ func installedTable(records []*inventory.Record, toTerminal bool) *termtable.Tab
 		}
 	}
 	return t
-}
-
-// indent prefixes every line with two spaces, matching drop's other output.
-func indent(s string) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	for i, line := range lines {
-		lines[i] = "  " + line
-	}
-	return strings.Join(lines, "\n") + "\n"
 }
 
 // recordRepository renders the repository an app came from in short form,
