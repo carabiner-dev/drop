@@ -183,6 +183,7 @@ func Execute() {
 	addCheckUpdate(rootCmd)
 	addList(rootCmd)
 	addUpdate(rootCmd)
+	addRm(rootCmd)
 	addRequest(rootCmd)
 	rootCmd.AddCommand(version.WithFont("doom"))
 

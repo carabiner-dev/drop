@@ -81,6 +81,9 @@ type installerImplementation interface {
 	// RemoveInstalled removes the artifact a previous installation left in
 	// the system: a binary file or a package (through the package manager).
 	RemoveInstalled(*GetOptions, *inventory.Record) error
+
+	// ForgetInstall deletes an app's record from the inventory.
+	ForgetInstall(*GetOptions, *inventory.Record) error
 }
 
 type defaultImplementation struct {

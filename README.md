@@ -109,6 +109,18 @@ drop check-update        # which installed apps have newer stable releases
 drop update              # reinstall them the way they were installed, after verifying
 ```
 
+### Removing installed apps
+
+```bash
+drop rm cosign           # uninstall an app and forget it
+drop rm sigstore/cosign  # or every app installed from a repository
+```
+
+`drop rm` deletes the binary (or removes the package through the package
+manager, with sudo when needed) and drops the app from the inventory. It
+shows what will be removed and asks for confirmation first; pass `--yes` to
+skip the prompt.
+
 ### Download
 
 ```bash

@@ -179,7 +179,7 @@ the current directory (or the directory set with --attestation-out), see
 // updatesTable renders the pending updates as a listing: the app, the
 // version jump, how it was installed and where it comes from.
 func updatesTable(updates []*drop.UpdateStatus, toTerminal bool) *termtable.Table {
-	titles := []string{"NAME", "VERSION", "KIND", "REPOSITORY"}
+	titles := []string{colName, colVersion, colKind, colRepository}
 	rows := make([][]string, 0, len(updates))
 	for _, status := range updates {
 		kind := status.Record.Kind

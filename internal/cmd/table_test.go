@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/carabiner-dev/drop/pkg/drop"
 	"github.com/carabiner-dev/drop/pkg/inventory"
 )
@@ -72,4 +74,11 @@ func TestUpdatesTable(t *testing.T) {
 		}
 	}
 	t.Log("\n" + out)
+}
+
+func TestRemovalsTable(t *testing.T) {
+	out := removalsTable(testRecords(), false).String()
+	lines := renderListing(t, out, colName, colVersion, colKind, colLocation, colRepository)
+	require.Len(t, lines, 4, "header, rule and one row per app")
+	require.NotContains(t, out, colVerified, "the removal summary does not repeat the verification state")
 }

@@ -7,6 +7,17 @@ import (
 	"github.com/carabiner-dev/termtable"
 )
 
+// Column titles shared by the listings.
+const (
+	colName       = "NAME"
+	colVersion    = "VERSION"
+	colKind       = "KIND"
+	colLocation   = "LOCATION"
+	colVerified   = "VERIFIED"
+	colUpdated    = "UPDATED"
+	colRepository = "REPOSITORY"
+)
+
 // listingTable builds the borderless table drop uses for listings: a bold
 // header over a rule, a bold first column, single-line cells and every
 // column exactly as wide as its widest content.
