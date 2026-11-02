@@ -148,8 +148,8 @@ github.com/carabiner-dev/spdx3 v0.1.0 h1:Q6nMLXV0BhtqDQuwRDOaJDZR670TK4jdOvZqvTW
 github.com/carabiner-dev/spdx3 v0.1.0/go.mod h1:d/t010TrZvYZBeYGpvHeId6QpRvGLlqK7cy0E81npPA=
 github.com/carabiner-dev/stash v0.0.0-20260914181612-673fcf191e49 h1:1w2A+h9pJd340ONY2cv8/LN+wfwAicplXpBnwja/ljg=
 github.com/carabiner-dev/stash v0.0.0-20260914181612-673fcf191e49/go.mod h1:oLgs6W8zu4PFbISAJDjNSsD9PNvHlaDCLwoOpz44cYU=
-github.com/carabiner-dev/termtable v1.1.1-0.20261028203715-538646d69a77 h1:Xs591nrhks2ku7wPcjWSh4vQLEIeZEKMmD39EfbvWyQ=
-github.com/carabiner-dev/termtable v1.1.1-0.20261028203715-538646d69a77/go.mod h1:J01WI3qNuTNC9ElZPMfy0pPaX8tl68xZ+cKUz4wrSec=
+github.com/carabiner-dev/termtable v1.1.1 h1:YRE0BJpchX1ld6WSEhJ+LYr+mHAxf8lgO3VN3YGB77U=
+github.com/carabiner-dev/termtable v1.1.1/go.mod h1:J01WI3qNuTNC9ElZPMfy0pPaX8tl68xZ+cKUz4wrSec=
 github.com/carabiner-dev/vcslocator v0.5.0 h1:UpqilJXRJBgwzQHk0MsD03w+8/0GcyC1HbXxX0wZKcU=
 github.com/carabiner-dev/vcslocator v0.5.0/go.mod h1:s4zrF5l7b2iZFsxVDKz6Y+6LcaqP4GTshSCGuCbu+Ls=
 github.com/catppuccin/go v0.3.0 h1:d+0/YicIq+hSTo5oPuRi5kOpqkVA5tAsU6dNhvRu+aY=
