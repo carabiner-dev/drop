@@ -11,7 +11,7 @@ require (
 	github.com/carabiner-dev/policy v0.5.6
 	github.com/carabiner-dev/predicates v0.5.4
 	github.com/carabiner-dev/signer v0.6.2
-	github.com/carabiner-dev/termtable v1.1.1-0.20261028203715-538646d69a77
+	github.com/carabiner-dev/termtable v1.1.1
 	github.com/charmbracelet/huh v1.0.0
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-billy/v5 v5.9.2
