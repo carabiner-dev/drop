@@ -18,7 +18,7 @@ require (
 	github.com/go-git/go-git/v5 v5.19.3
 	github.com/google/go-github/v60 v60.0.0
 	github.com/in-toto/attestation v1.2.0
-	github.com/klauspost/compress v1.20.3
+	github.com/klauspost/compress v1.20.4
 	github.com/mattn/go-isatty v0.0.24
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/sirupsen/logrus v1.10.2
