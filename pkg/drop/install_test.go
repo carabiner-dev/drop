@@ -13,7 +13,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -1043,9 +1045,17 @@ func TestCopyFileReplacesRunningBinary(t *testing.T) {
 	target := filepath.Join(dir, "app")
 	require.NoError(t, copyFile(sleepBin, target, 0o755))
 
-	// Run the installed binary so its text is busy
-	cmd := exec.CommandContext(t.Context(), target, "30") //nolint:gosec // the target is a file this test wrote
-	require.NoError(t, cmd.Start())
+	// Run the installed binary so its text is busy. On Linux, a concurrent
+	// fork can briefly inherit the copy's writable descriptor before exec
+	// closes it. Retry only ETXTBSY while that descriptor is still open.
+	var cmd *exec.Cmd
+	var startErr error
+	require.Eventually(t, func() bool {
+		cmd = exec.CommandContext(t.Context(), target, "30")
+		startErr = cmd.Start()
+		return !errors.Is(startErr, syscall.ETXTBSY)
+	}, 5*time.Second, 10*time.Millisecond, "copied executable remained busy")
+	require.NoError(t, startErr)
 	t.Cleanup(func() {
 		if err := cmd.Process.Kill(); err != nil {
 			t.Logf("killing test process: %v", err)
