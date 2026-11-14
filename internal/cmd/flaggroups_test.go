@@ -34,9 +34,9 @@ func TestGroupedUsage(t *testing.T) {
 	sign := usage[signing:]
 	require.Contains(t, own, "--bin-dir")
 	require.NotContains(t, own, "--attest")
-	require.Contains(t, attestation, "--attest ")
+	require.Contains(t, attestation, "--attest[=true|false]")
 	require.Contains(t, attestation, "--attestation-type")
-	require.Contains(t, attestation, "--sign ")
+	require.Contains(t, attestation, "--sign[=true|false]")
 	require.NotContains(t, attestation, "--signing-key")
 	require.Contains(t, sign, "--signing-key")
 	require.Contains(t, sign, "--sigstore-instance")
