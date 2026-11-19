@@ -35,7 +35,7 @@ func TestWithPolicyRepository(t *testing.T) {
 		expectErr bool
 	}{
 		{"empty", "", "", false},
-		{"slug", "sigstore/cosign", "https://github.com/sigstore/cosign", false},
+		{"slug", cosignRepo, "https://github.com/sigstore/cosign", false},
 		{"github-url", "https://github.com/carabiner-dev/demo-policy-store", "https://github.com/carabiner-dev/demo-policy-store", false},
 		{"file-url", "file://" + dir, locator(dir), false},
 		{"absolute-path", dir, locator(dir), false},
@@ -44,7 +44,7 @@ func TestWithPolicyRepository(t *testing.T) {
 		{"missing-absolute", missing, "", true},
 		{"missing-file-url", "file://" + missing, "", true},
 		{"file-not-dir", "", "", true},
-		{"bad-slug", "nothing", "", true},
+		{"bad-slug", unknownApp, "", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
