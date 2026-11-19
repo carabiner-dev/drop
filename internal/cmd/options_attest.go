@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/carabiner-dev/signer"
-	signerOpts "github.com/carabiner-dev/signer/options"
+	"github.com/policylabs/signer"
+	signerOpts "github.com/policylabs/signer/options"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 

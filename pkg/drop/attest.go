@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/carabiner-dev/ampel/pkg/attest"
-	"github.com/carabiner-dev/ampel/pkg/verifier"
-	papi "github.com/carabiner-dev/policy/api/v1"
+	"github.com/policylabs/ampel/pkg/attest"
+	"github.com/policylabs/ampel/pkg/verifier"
+	papi "github.com/policylabs/policy/api/v1"
 	util "sigs.k8s.io/release-utils/helpers"
 
 	"github.com/carabiner-dev/drop/pkg/github"

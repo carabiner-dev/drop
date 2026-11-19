@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	papi "github.com/carabiner-dev/policy/api/v1"
-	"github.com/carabiner-dev/signer"
-	"github.com/carabiner-dev/signer/key"
-	"github.com/carabiner-dev/signer/options"
 	intoto "github.com/in-toto/attestation/go/v1"
+	papi "github.com/policylabs/policy/api/v1"
+	"github.com/policylabs/signer"
+	"github.com/policylabs/signer/key"
+	"github.com/policylabs/signer/options"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -237,7 +237,7 @@ func TestAttestResultsSigned(t *testing.T) {
 		} `json:"signatures"`
 	}{}
 	require.NoError(t, json.Unmarshal(data, &envelope))
-	require.Equal(t, "https://in-toto.io/Statement/v1", envelope.PayloadType)
+	require.Equal(t, "application/vnd.in-toto+json", envelope.PayloadType)
 	require.NotEmpty(t, envelope.Signatures)
 	require.NotEmpty(t, envelope.Signatures[0].Sig)
 
