@@ -70,17 +70,25 @@ of an app's archive changed (the only one found is taken):
 
   drop update -y
 
+By default all the installed apps are updated. To update only some of
+them, name them as arguments. Apps are named as in "drop rm": by app name
+or by the repository they were installed from (org/repo). Names can be
+glob patterns, quote them to keep the shell from expanding them:
+
+  drop update cosign
+  drop update 'co*' sigstore/gitsign
+
 Pass --attest to write a signed attestation of each app's verification to
 the current directory (or the directory set with --attestation-out), see
 "drop install --help" for the attestation and signing flags.
 
 `, DropBanner("Update the apps installed with drop"), w2("update"), w2("drop update")),
-		Use:               "update",
-		Example:           fmt.Sprintf("%s update", appname),
+		Use:               "update [flags] [app...]",
+		Example:           fmt.Sprintf("%s update\n%s update cosign 'b*'", appname, appname),
 		SilenceUsage:      false,
 		SilenceErrors:     true,
 		PersistentPreRunE: initLogging,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.Validate(); err != nil {
 				return err
 			}
@@ -109,7 +117,7 @@ the current directory (or the directory set with --attestation-out), see
 				return fmt.Errorf("creating dropper: %w", err)
 			}
 
-			statuses, err := dropper.CheckUpdates()
+			statuses, err := dropper.CheckUpdates(args...)
 			if err != nil {
 				return err
 			}

@@ -24,14 +24,22 @@ release.
 The data of the installed apps is read from drop's inventory, only apps
 installed through %s are checked.
 
+By default all the installed apps are checked. To check only some of them,
+name them as arguments: by app name or by the repository they were
+installed from (org/repo). Names can be glob patterns, quote them to keep
+the shell from expanding them:
+
+  drop check-update cosign
+  drop check-update 'co*' sigstore/gitsign
+
 `, DropBanner("Check installed apps for new releases"), w2("check-update"), w2("drop install")),
-		Use:               "check-update",
+		Use:               "check-update [app...]",
 		Aliases:           []string{"check-updates"},
-		Example:           fmt.Sprintf("%s check-update", appname),
+		Example:           fmt.Sprintf("%s check-update\n%s check-update cosign 'b*'", appname, appname),
 		SilenceUsage:      false,
 		SilenceErrors:     true,
 		PersistentPreRunE: initLogging,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
 			dropper, err := drop.New()
@@ -39,7 +47,7 @@ installed through %s are checked.
 				return fmt.Errorf("creating dropper: %w", err)
 			}
 
-			statuses, err := dropper.CheckUpdates()
+			statuses, err := dropper.CheckUpdates(args...)
 			if err != nil {
 				return err
 			}

@@ -20,6 +20,8 @@ const (
 	forkedKey   = "git.example.com/forks/cosign#cosign"
 	exampleHost = "git.example.com"
 	sigstoreOrg = "sigstore"
+	cosignRepo  = "sigstore/cosign"
+	unknownApp  = "nothing"
 )
 
 // removeTestInventory writes an inventory with apps from three
@@ -50,10 +52,10 @@ func TestMatchInstalled(t *testing.T) {
 	}{
 		{name: "by-name", ref: testAppName, expect: []string{"github.com/carabiner-dev/drop#drop"}},
 		{name: "name-in-two-repos", ref: cosignName, expect: []string{forkedKey, cosignKey}},
-		{name: "by-repo", ref: "sigstore/cosign", expect: []string{cosignKey, cosignSBOM}},
+		{name: "by-repo", ref: cosignRepo, expect: []string{cosignKey, cosignSBOM}},
 		{name: "by-host-repo", ref: exampleHost + "/forks/cosign", expect: []string{forkedKey}},
 		{name: "url", ref: "https://github.com/sigstore/cosign/", expect: []string{cosignKey, cosignSBOM}},
-		{name: "unknown", ref: "nothing"},
+		{name: "unknown", ref: unknownApp},
 		{name: "blank", ref: "  "},
 		{name: "wrong-host", ref: "gitlab.com/sigstore/cosign"},
 	} {
