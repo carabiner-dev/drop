@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	papi "github.com/carabiner-dev/policy/api/v1"
 	intoto "github.com/in-toto/attestation/go/v1"
+	papi "github.com/policylabs/policy/api/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 

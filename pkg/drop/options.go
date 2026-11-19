@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/carabiner-dev/signer"
+	"github.com/policylabs/signer"
 	util "sigs.k8s.io/release-utils/helpers"
 
 	"github.com/carabiner-dev/drop/pkg/github"
