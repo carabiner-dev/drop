@@ -107,6 +107,8 @@ drop list                # what is installed, where, and whether it was verified
 ```bash
 drop check-update        # which installed apps have newer stable releases
 drop update              # reinstall them the way they were installed, after verifying
+drop update cosign       # update only one app (by name or org/repo)
+drop update 'co*'        # or those matching a glob pattern
 ```
 
 ### Removing installed apps

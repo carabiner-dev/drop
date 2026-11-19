@@ -6,8 +6,10 @@ package drop
 import (
 	"fmt"
 	"maps"
+	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -34,10 +36,21 @@ type UpdateStatus struct {
 
 // CheckUpdates reads the inventory of installed apps and checks the GitHub
 // releases of each of them to see if a newer version is available.
-func (dropper *Dropper) CheckUpdates() ([]*UpdateStatus, error) {
+//
+// When app references are passed, only the apps they name are checked. A
+// reference is the name of an installed app or the repository it came from
+// (org/repo or host/org/repo), and may be a glob pattern such as "cos*" or
+// "sigstore/*". A reference naming no installed app returns an error
+// wrapping ErrNotInstalled.
+func (dropper *Dropper) CheckUpdates(refs ...string) ([]*UpdateStatus, error) {
 	inv, err := inventory.Open()
 	if err != nil {
 		return nil, fmt.Errorf("opening install inventory: %w", err)
+	}
+
+	keys, err := selectInstalled(inv, refs)
+	if err != nil {
+		return nil, err
 	}
 
 	// Several installed apps can come from the same repository, check
@@ -45,8 +58,8 @@ func (dropper *Dropper) CheckUpdates() ([]*UpdateStatus, error) {
 	latestCache := map[string]string{}
 	errCache := map[string]error{}
 
-	ret := make([]*UpdateStatus, 0, len(inv.Installs))
-	for _, key := range slices.Sorted(maps.Keys(inv.Installs)) {
+	ret := make([]*UpdateStatus, 0, len(keys))
+	for _, key := range keys {
 		record := inv.Installs[key]
 		repoKey := record.Host + "/" + record.Org + "/" + record.Repo
 
@@ -72,6 +85,49 @@ func (dropper *Dropper) CheckUpdates() ([]*UpdateStatus, error) {
 		ret = append(ret, status)
 	}
 	return ret, nil
+}
+
+// selectInstalled returns the sorted inventory keys of the apps named by
+// refs, or all of them when no refs are given. Each ref is matched as a glob
+// against the app name, its org/repo and its host/org/repo. Every ref has to
+// name at least one installed app.
+func selectInstalled(inv *inventory.Inventory, refs []string) ([]string, error) {
+	keys := slices.Sorted(maps.Keys(inv.Installs))
+	if len(refs) == 0 {
+		return keys, nil
+	}
+
+	selected := map[string]bool{}
+	for _, ref := range refs {
+		pattern := strings.TrimSpace(ref)
+		if i := strings.Index(pattern, "://"); i >= 0 {
+			pattern = pattern[i+3:]
+		}
+		pattern = strings.Trim(pattern, "/")
+		if _, err := path.Match(pattern, ""); err != nil {
+			return nil, fmt.Errorf("invalid app pattern %q: %w", ref, err)
+		}
+
+		matched := false
+		for _, key := range keys {
+			r := inv.Installs[key]
+			for _, candidate := range []string{
+				r.Name, r.Org + "/" + r.Repo, r.Host + "/" + r.Org + "/" + r.Repo,
+			} {
+				// The pattern was validated above, Match cannot fail here
+				if ok, _ := path.Match(pattern, candidate); ok { //nolint:errcheck // validated
+					selected[key] = true
+					matched = true
+					break
+				}
+			}
+		}
+		if !matched {
+			return nil, fmt.Errorf("%w: %s", ErrNotInstalled, ref)
+		}
+	}
+
+	return slices.DeleteFunc(keys, func(key string) bool { return !selected[key] }), nil
 }
 
 // latestReleaseVersion returns the tag of the newest stable release in the

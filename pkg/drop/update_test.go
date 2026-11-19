@@ -107,3 +107,49 @@ func TestUpdateInstallOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectInstalled(t *testing.T) {
+	t.Parallel()
+	inv, _ := removeTestInventory(t)
+	dropAppKey := "github.com/carabiner-dev/drop#drop"
+	for _, tc := range []struct {
+		name    string
+		refs    []string
+		expect  []string // keys
+		mustErr error
+		anyErr  bool
+	}{
+		{name: "no-refs-all", expect: []string{forkedKey, dropAppKey, cosignKey, cosignSBOM}},
+		{name: "by-name", refs: []string{testAppName}, expect: []string{dropAppKey}},
+		{name: "name-in-two-repos", refs: []string{cosignName}, expect: []string{forkedKey, cosignKey}},
+		{name: "name-glob", refs: []string{"cos*"}, expect: []string{forkedKey, cosignKey, cosignSBOM}},
+		{name: "name-glob-suffix", refs: []string{"*-sbom"}, expect: []string{cosignSBOM}},
+		{name: "question-mark", refs: []string{"dro?"}, expect: []string{dropAppKey}},
+		{name: "star", refs: []string{"*"}, expect: []string{forkedKey, dropAppKey, cosignKey, cosignSBOM}},
+		{name: "by-repo", refs: []string{"sigstore/cosign"}, expect: []string{cosignKey, cosignSBOM}},
+		{name: "repo-glob", refs: []string{"sigstore/*"}, expect: []string{cosignKey, cosignSBOM}},
+		{name: "host-glob", refs: []string{exampleHost + "/*/*"}, expect: []string{forkedKey}},
+		{name: "url", refs: []string{"https://github.com/sigstore/cosign/"}, expect: []string{cosignKey, cosignSBOM}},
+		{name: "several-overlapping", refs: []string{"d*", testAppName, "*-sbom"}, expect: []string{dropAppKey, cosignSBOM}},
+		{name: "unknown", refs: []string{"nothing"}, mustErr: ErrNotInstalled},
+		{name: "glob-no-match", refs: []string{"zz*"}, mustErr: ErrNotInstalled},
+		{name: "one-unknown", refs: []string{testAppName, "nothing"}, mustErr: ErrNotInstalled},
+		{name: "blank", refs: []string{"  "}, mustErr: ErrNotInstalled},
+		{name: "bad-pattern", refs: []string{"co[sign"}, anyErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			keys, err := selectInstalled(inv, tc.refs)
+			if tc.mustErr != nil {
+				require.ErrorIs(t, err, tc.mustErr)
+				return
+			}
+			if tc.anyErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expect, keys)
+		})
+	}
+}
