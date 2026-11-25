@@ -17,7 +17,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/policylabs/ampel v1.5.0
 	github.com/policylabs/attestation v0.3.0
-	github.com/policylabs/collector v0.4.1
+	github.com/policylabs/collector v0.4.2
 	github.com/policylabs/policy v0.6.0
 	github.com/policylabs/predicates v0.6.0
 	github.com/policylabs/signer v0.6.8
@@ -79,14 +79,14 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/carabiner-dev/command v0.3.4 // indirect
 	github.com/carabiner-dev/deadrop v0.0.0-20260228173914-d95e9ea2877d // indirect
-	github.com/carabiner-dev/ghrfs v0.3.7 // indirect
+	github.com/carabiner-dev/ghrfs v0.3.8 // indirect
 	github.com/carabiner-dev/github v0.2.4 // indirect
 	github.com/carabiner-dev/jsonl v0.2.2 // indirect
 	github.com/carabiner-dev/openeox v1.0.0 // indirect
 	github.com/carabiner-dev/osv v0.1.2 // indirect
 	github.com/carabiner-dev/sbomfs v0.2.1 // indirect
 	github.com/carabiner-dev/spdx3 v0.1.0 // indirect
-	github.com/carabiner-dev/stash v0.0.0-20261004182444-008b3bad7a45 // indirect
+	github.com/carabiner-dev/stash v0.0.0-20261112185626-a502ec41ccdf // indirect
 	github.com/carabiner-dev/vcslocator v0.5.1 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -254,7 +254,7 @@ require (
 	golang.org/x/exp v0.0.0-20260820142414-ca536658362e // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/term v0.48.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
